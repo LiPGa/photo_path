@@ -300,9 +300,9 @@ const App: React.FC = () => {
     <div className={`space-y-2 w-full ${small ? 'opacity-80' : ''}`}>
       <div className="flex justify-between items-end mono text-xs tracking-widest font-bold">
         <span className="text-zinc-600 uppercase">{label}</span>
-        <span className="text-sm font-black" style={{ color }}>{score ?? '--'}</span>
+        <span className="text-sm font-black" style={{ color }}>{score !== undefined ? score.toFixed(1) : '--'}</span>
       </div>
-      <div className="pixel-meter-bar"><div className="pixel-meter-fill" style={{ width: `${score ?? 0}%`, backgroundColor: color }}></div></div>
+      <div className="pixel-meter-bar"><div className="pixel-meter-fill" style={{ width: `${(score ?? 0) * 10}%`, backgroundColor: color }}></div></div>
     </div>
   );
 
@@ -717,7 +717,7 @@ const App: React.FC = () => {
                             <ScoreMeter score={entry.scores.content} label="叙事" small />
                           </div>
                           <div className="sm:col-span-2 text-right hidden sm:block">
-                            <span className="mono text-8xl font-black italic group-hover:text-white transition-all duration-500">{entry.scores.overall}</span>
+                            <span className="mono text-8xl font-black italic group-hover:text-white transition-all duration-500">{entry.scores.overall?.toFixed(1)}</span>
                           </div>
                         </div>
                         <ChevronRight size={48} className="text-zinc-900 group-hover:text-white transition-all transform group-hover:translate-x-4" />
@@ -791,9 +791,9 @@ const App: React.FC = () => {
                       <span className="text-xs text-zinc-500">{item.label}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-[#D40000] rounded-full" style={{ width: `${item.score}%` }}/>
+                          <div className="h-full bg-[#D40000] rounded-full" style={{ width: `${item.score * 10}%` }}/>
                         </div>
-                        <span className="text-xs font-bold text-zinc-300 w-6 text-right">{item.score}</span>
+                        <span className="text-xs font-bold text-zinc-300 w-8 text-right">{item.score.toFixed(1)}</span>
                       </div>
                     </div>
                   ))}
@@ -802,7 +802,7 @@ const App: React.FC = () => {
                 {/* 综合评分 */}
                 <div className="flex items-center justify-between pt-3 border-t border-white/5">
                   <span className="text-sm font-medium text-zinc-400">综合评分</span>
-                  <span className="text-3xl font-black text-[#D40000]">{currentResult.scores.overall}</span>
+                  <span className="text-3xl font-black text-[#D40000]">{currentResult.scores.overall.toFixed(1)}</span>
                 </div>
               </div>
 

@@ -1,14 +1,14 @@
 
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 
-// Mock 数据 - 本地测试时使用
+// Mock 数据 - 本地测试时使用 (10分制)
 const MOCK_RESPONSE = {
   scores: {
-    composition: 72,
-    light: 68,
-    content: 65,
-    completeness: 70,
-    overall: 69
+    composition: 7.2,
+    light: 6.8,
+    content: 6.5,
+    completeness: 7.0,
+    overall: 6.9
   },
   analysis: {
     diagnosis: "这张照片展现了一个有趣的视角，光线的运用营造出一种宁静的氛围。构图上主体位置合理，但背景略显杂乱，分散了观者的注意力。\n\n色彩处理上偏向自然，没有过度调色的痕迹，这是值得肯定的。整体来看，这是一张有想法但执行上还有提升空间的作品。",
@@ -52,10 +52,10 @@ export async function analyzePhoto(imageUri: string, technicalContext: any): Pro
     在认真看完这张照片后，用自然、有呼吸感的语言，
     结合技术与感受，给出诚实而专业的反馈。
 
-    【评分哲学】
-    - 普通随手拍、记录照的合理区间为 40–60 分。
-    - 70 分以上必须体现明确的构图意识或拍摄意图。
-    - 85 分以上仅属于具有强烈视觉张力、成熟表达或独特视角的作品。
+    【评分哲学】（采用 10 分制，可精确到小数点后一位）
+    - 普通随手拍、记录照的合理区间为 4.0–6.0 分。
+    - 7.0 分以上必须体现明确的构图意识或拍摄意图。
+    - 8.5 分以上仅属于具有强烈视觉张力、成熟表达或独特视角的作品。
     - 评分宁可偏低，也不要虚高。
 
     【评价方式（非常重要）】
