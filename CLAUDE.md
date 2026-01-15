@@ -13,11 +13,17 @@ npm run preview      # Preview production build
 
 ## Environment Setup
 
-Set `GEMINI_API_KEY` in `.env.local` for the Gemini AI photo analysis feature:
+Set environment variables in `.env.local`:
 
-```
+```bash
+# Gemini API Key (必需)
 GEMINI_API_KEY=your_api_key_here
+
+# Mock 模式 - 本地测试时跳过 API 调用，返回模拟数据 (可选)
+VITE_MOCK_API=true
 ```
+
+**本地开发时**建议开启 `VITE_MOCK_API=true` 节省 API 配额。部署时设为 `false` 或删除。
 
 ## Architecture
 

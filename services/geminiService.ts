@@ -1,7 +1,39 @@
 
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 
+// Mock 数据 - 本地测试时使用
+const MOCK_RESPONSE = {
+  scores: {
+    composition: 72,
+    light: 68,
+    content: 65,
+    completeness: 70,
+    overall: 69
+  },
+  analysis: {
+    diagnosis: "这张照片展现了一个有趣的视角，光线的运用营造出一种宁静的氛围。构图上主体位置合理，但背景略显杂乱，分散了观者的注意力。\n\n色彩处理上偏向自然，没有过度调色的痕迹，这是值得肯定的。整体来看，这是一张有想法但执行上还有提升空间的作品。",
+    improvement: "建议在拍摄时多注意背景的简洁性，可以通过调整拍摄角度或使用更大的光圈来虚化背景。另外，可以尝试在黄金时段拍摄，利用更柔和的自然光来增强画面的氛围感。",
+    storyNote: "画面传递出一种日常生活中的宁静时刻，仿佛在邀请观者停下来，感受当下的美好。",
+    moodNote: "平静、沉思",
+    overallSuggestion: "继续保持对光线的敏感度，同时加强对构图和背景的控制。",
+    suggestedTitles: ["静谧时光", "光影之间", "日常的诗意"],
+    suggestedTags: ["生活", "光影", "日常", "街拍", "城市"],
+    instagramCaption: "In the quiet moments, we find ourselves.",
+    instagramHashtags: ["photography", "streetphotography", "lightandshadow", "urbanlife", "dailylife", "moments", "visualstorytelling"]
+  }
+};
+
 export async function analyzePhoto(imageUri: string, technicalContext: any): Promise<any> {
+  // Mock 模式 - 本地测试不调用 API
+  const useMock = import.meta.env.VITE_MOCK_API === 'true';
+
+  if (useMock) {
+    console.log('🔧 Mock 模式: 返回模拟数据，不调用 Gemini API');
+    // 模拟 API 延迟
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return MOCK_RESPONSE;
+  }
+
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   let base64Data = imageUri;
