@@ -41,6 +41,8 @@ const AI_THINKING_STATES = [
 ];
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024;
+const DAILY_LIMIT = 5;
+const STORAGE_KEY = 'photopath_daily_usage';
 
 const EXIF_LABELS: Record<string, string> = {
   camera: 'CAMERA',
@@ -113,6 +115,31 @@ const App: React.FC = () => {
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dailyUsage, setDailyUsage] = useState({ count: 0, date: '' });
+
+  // 加载每日使用次数
+  useEffect(() => {
+    const today = new Date().toDateString();
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const data = JSON.parse(stored);
+      if (data.date === today) {
+        setDailyUsage(data);
+      } else {
+        // 新的一天，重置计数
+        const newUsage = { count: 0, date: today };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newUsage));
+        setDailyUsage(newUsage);
+      }
+    } else {
+      const newUsage = { count: 0, date: today };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newUsage));
+      setDailyUsage(newUsage);
+    }
+  }, []);
+
+  const remainingUses = DAILY_LIMIT - dailyUsage.count;
+  const isLimitReached = remainingUses <= 0;
 
   useEffect(() => {
     let interval: any;
@@ -179,6 +206,10 @@ const App: React.FC = () => {
 
   const startAnalysis = async () => {
     if (!currentUpload) return;
+    if (isLimitReached) {
+      setError("今日免费次数已用完，明天再来吧！");
+      return;
+    }
     setIsAnalyzing(true);
     setError(null);
     try {
@@ -186,6 +217,12 @@ const App: React.FC = () => {
       setCurrentResult(result);
       if (result.analysis.suggestedTitles?.length) setSelectedTitle(result.analysis.suggestedTitles[0]);
       if (result.analysis.suggestedTags?.length) setActiveTags(result.analysis.suggestedTags);
+
+      // 更新使用次数
+      const today = new Date().toDateString();
+      const newUsage = { count: dailyUsage.count + 1, date: today };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newUsage));
+      setDailyUsage(newUsage);
     } catch (err: any) {
       console.error(err);
       setError("分析终端响应异常。请重试。");
@@ -417,17 +454,45 @@ const App: React.FC = () => {
                 </header>
 
                 {!currentResult ? (
-                  <div className="space-y-12">
+                  <div className="space-y-8">
                     <p className="text-zinc-500 text-base leading-relaxed">
                       上传你的作品，AI 会从构图、光影、叙事等角度给出专业反馈，帮助你发现进步空间。
                     </p>
-                    <button 
-                      disabled={!currentUpload || isAnalyzing} 
-                      onClick={startAnalysis} 
-                      className="w-full border border-white/20 py-10 mono text-sm font-bold tracking-[0.5em] hover:bg-white hover:text-black disabled:opacity-5 transition-all uppercase shadow-lg group active:scale-[0.98]"
+
+                    {/* 每日限制提示 */}
+                    <div className="flex items-center justify-between p-4 bg-zinc-900/50 border border-white/5 rounded-sm">
+                      <div className="flex items-center gap-2 text-zinc-500 text-sm">
+                        <Zap size={16} className={remainingUses > 0 ? 'text-[#D40000]' : 'text-zinc-700'} />
+                        <span>今日剩余</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[...Array(DAILY_LIMIT)].map((_, i) => (
+                          <div
+                            key={i}
+                            className={`w-2 h-2 rounded-full transition-colors ${i < remainingUses ? 'bg-[#D40000]' : 'bg-zinc-800'}`}
+                          />
+                        ))}
+                        <span className="ml-2 mono text-sm font-bold text-zinc-400">{remainingUses}/{DAILY_LIMIT}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      disabled={!currentUpload || isAnalyzing || isLimitReached}
+                      onClick={startAnalysis}
+                      className={`w-full py-10 mono text-sm font-bold tracking-[0.5em] transition-all uppercase shadow-lg group active:scale-[0.98] ${
+                        isLimitReached
+                          ? 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
+                          : 'border border-white/20 hover:bg-white hover:text-black disabled:opacity-20'
+                      }`}
                     >
-                      {isAnalyzing ? '分析中...' : '开始分析'}
+                      {isLimitReached ? '今日次数已用完' : isAnalyzing ? '分析中...' : '开始分析'}
                     </button>
+
+                    {isLimitReached && (
+                      <p className="text-center text-zinc-600 text-sm">
+                        明天再来，或 <span className="text-[#D40000] cursor-pointer hover:underline">登录</span> 解锁无限次数
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-20 animate-in slide-in-from-right-12 duration-1000">
