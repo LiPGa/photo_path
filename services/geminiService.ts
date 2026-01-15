@@ -2,7 +2,7 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 
 export async function analyzePhoto(imageUri: string, technicalContext: any): Promise<any> {
-  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   let base64Data = imageUri;
   let mimeType = 'image/jpeg';

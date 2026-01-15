@@ -13,10 +13,10 @@ npm run preview      # Preview production build
 
 ## Environment Setup
 
-Set `VITE_GEMINI_API_KEY` in `.env.local` for the Gemini AI photo analysis feature:
+Set `GEMINI_API_KEY` in `.env.local` for the Gemini AI photo analysis feature:
 
 ```
-VITE_GEMINI_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_api_key_here
 ```
 
 ## Architecture
