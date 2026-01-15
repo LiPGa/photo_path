@@ -26,21 +26,29 @@ import {
   AlertCircle,
   Lightbulb
 } from 'lucide-react';
-import EXIF from 'exif-js';
+import exifr from 'exifr';
 import { NavTab, PhotoEntry, DetailedScores, DetailedAnalysis } from './types';
 import { analyzePhoto } from './services/geminiService';
 import { INITIAL_ENTRIES, PHOTO_TIPS } from './constants';
 
-const STATUS_WORDS = [
-  "AUDITING PIXELS",
-  "SCANNING METADATA",
-  "EVALUATING VISION",
-  "MAPPING INTENT",
-  "DECODING LIGHT",
-  "CALIBRATING SCORE"
+const AI_THINKING_STATES = [
+  { main: "正在凝视这张照片...", sub: "试图理解画面的第一印象" },
+  { main: "嗯，让我仔细看看构图", sub: "分析视觉元素的排布" },
+  { main: "光影很有意思...", sub: "解读明暗关系与氛围" },
+  { main: "我在思考这张照片想说什么", sub: "探索叙事与情感表达" },
+  { main: "正在组织我的想法", sub: "整合技术分析与感性认知" },
+  { main: "快好了，正在斟酌措辞", sub: "确保反馈诚实且有建设性" },
 ];
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024;
+
+const EXIF_LABELS: Record<string, string> = {
+  camera: 'CAMERA',
+  aperture: 'APERTURE',
+  shutterSpeed: 'SHUTTER',
+  iso: 'ISO',
+  focalLength: 'FOCAL',
+};
 
 const Histogram: React.FC<{ imageUrl: string, className?: string }> = ({ imageUrl, className }) => {
   const [data, setData] = useState<number[]>([]);
@@ -71,7 +79,7 @@ const Histogram: React.FC<{ imageUrl: string, className?: string }> = ({ imageUr
       {data.map((h, i) => (
         <div key={i} className="bg-white/20 flex-grow" style={{ height: `${h}%`, minWidth: '1px' }}></div>
       ))}
-      <div className="absolute top-1 left-2 mono text-[6px] text-zinc-700 font-bold uppercase tracking-widest pointer-events-none">LUMINANCE_ANALYSIS</div>
+      <div className="absolute top-1 left-2 mono text-[10px] text-zinc-700 font-bold uppercase tracking-widest pointer-events-none">LUMINANCE_ANALYSIS</div>
     </div>
   );
 };
@@ -95,7 +103,8 @@ const App: React.FC = () => {
   const [currentUpload, setCurrentUpload] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentTip, setCurrentTip] = useState(PHOTO_TIPS[0]);
-  const [currentStatus, setCurrentStatus] = useState(STATUS_WORDS[0]);
+  const [thinkingState, setThinkingState] = useState(AI_THINKING_STATES[0]);
+  const [thinkingIndex, setThinkingIndex] = useState(0);
   const [currentResult, setCurrentResult] = useState<{scores: DetailedScores, analysis: DetailedAnalysis} | null>(null);
   const [userNote, setUserNote] = useState('');
   const [selectedEntry, setSelectedEntry] = useState<PhotoEntry | null>(null);
@@ -108,44 +117,63 @@ const App: React.FC = () => {
   useEffect(() => {
     let interval: any;
     if (isAnalyzing) {
+      setThinkingIndex(0);
+      setThinkingState(AI_THINKING_STATES[0]);
       interval = setInterval(() => {
+        setThinkingIndex(prev => {
+          const next = (prev + 1) % AI_THINKING_STATES.length;
+          setThinkingState(AI_THINKING_STATES[next]);
+          return next;
+        });
         setCurrentTip(PHOTO_TIPS[Math.floor(Math.random() * PHOTO_TIPS.length)]);
-        setCurrentStatus(STATUS_WORDS[Math.floor(Math.random() * STATUS_WORDS.length)]);
-      }, 3500);
+      }, 3000);
     }
     return () => clearInterval(interval);
   }, [isAnalyzing]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > MAX_FILE_SIZE) {
         setError("文件过大 (上限 15MB)。请上传压缩后的 JPG/PNG。");
         return;
       }
+
+      // Set default EXIF values first
+      setCurrentExif({
+        camera: "Unknown",
+        aperture: "--",
+        shutterSpeed: "--",
+        iso: "--",
+        focalLength: "--",
+      });
+
+      // Read file as base64
       const r = new FileReader();
       r.onload = (ev) => {
         const base64 = ev.target?.result as string;
         setCurrentUpload(base64);
         setError(null);
         setCurrentResult(null);
-        try {
-          EXIF.getData(file as any, function(this: any) {
-            const allMetaData = EXIF.getAllTags(this);
-            setCurrentExif({
-              camera: allMetaData.Model || "Unknown Device",
-              aperture: allMetaData.FNumber ? `f/${allMetaData.FNumber}` : "N/A",
-              shutterSpeed: allMetaData.ExposureTime ? 
-                (allMetaData.ExposureTime < 1 ? `1/${Math.round(1/allMetaData.ExposureTime)}s` : `${allMetaData.ExposureTime}s`) : "N/A",
-              iso: allMetaData.ISOSpeedRatings ? `ISO ${allMetaData.ISOSpeedRatings}` : "N/A",
-              focalLength: allMetaData.FocalLength ? `${allMetaData.FocalLength}mm` : "N/A",
-            });
-          });
-        } catch (e) {
-          console.warn("EXIF extraction failed.");
-        }
       };
       r.readAsDataURL(file);
+
+      // Extract EXIF data using exifr
+      try {
+        const exifData = await exifr.parse(file);
+        if (exifData) {
+          setCurrentExif({
+            camera: exifData.Model || exifData.Make || "Unknown",
+            aperture: exifData.FNumber ? `f/${exifData.FNumber}` : "--",
+            shutterSpeed: exifData.ExposureTime ?
+              (exifData.ExposureTime < 1 ? `1/${Math.round(1/exifData.ExposureTime)}s` : `${exifData.ExposureTime}s`) : "--",
+            iso: exifData.ISO ? `ISO ${exifData.ISO}` : "--",
+            focalLength: exifData.FocalLength ? `${Math.round(exifData.FocalLength)}mm` : "--",
+          });
+        }
+      } catch (e) {
+        console.warn("EXIF extraction failed:", e);
+      }
     }
   };
 
@@ -154,7 +182,7 @@ const App: React.FC = () => {
     setIsAnalyzing(true);
     setError(null);
     try {
-      const result = await analyzePhoto(currentUpload, { exif: currentExif });
+      const result = await analyzePhoto(currentUpload, { exif: currentExif, creatorContext: userNote });
       setCurrentResult(result);
       if (result.analysis.suggestedTitles?.length) setSelectedTitle(result.analysis.suggestedTitles[0]);
       if (result.analysis.suggestedTags?.length) setActiveTags(result.analysis.suggestedTags);
@@ -205,9 +233,9 @@ const App: React.FC = () => {
 
   const ScoreMeter = ({ score, label, color = "#fff", small = false }: { score: number | undefined, label: string, color?: string, small?: boolean }) => (
     <div className={`space-y-2 w-full ${small ? 'opacity-80' : ''}`}>
-      <div className="flex justify-between items-end mono text-[11px] tracking-widest font-bold">
+      <div className="flex justify-between items-end mono text-xs tracking-widest font-bold">
         <span className="text-zinc-600 uppercase">{label}</span>
-        <span className="text-base font-black" style={{ color }}>{score ?? '--'}</span>
+        <span className="text-sm font-black" style={{ color }}>{score ?? '--'}</span>
       </div>
       <div className="pixel-meter-bar"><div className="pixel-meter-fill" style={{ width: `${score ?? 0}%`, backgroundColor: color }}></div></div>
     </div>
@@ -252,25 +280,53 @@ const App: React.FC = () => {
                     <div className="relative group">
                       {isAnalyzing && (
                         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-8 bg-black/95 backdrop-blur-2xl rounded-sm border border-white/5 overflow-hidden">
-                          <div className="max-w-md text-center space-y-4 animate-in zoom-in duration-700">
-                             <div className="rec-dot mx-auto mb-6"></div>
-                             <div className="mono text-[#D40000] text-[10px] font-bold tracking-[0.6em] uppercase opacity-70 mb-2">{currentStatus}</div>
-                             
-                             <div className="space-y-4 p-8 bg-white/[0.03] border border-white/10 rounded-lg">
-                               <div className="flex items-center justify-center gap-2 text-[#D40000] mono text-[11px] font-bold">
-                                 <Lightbulb size={16} /> PHOTOGRAPHY_TIP
+                          <div className="max-w-md text-center space-y-6 animate-in zoom-in duration-700">
+                             {/* AI 头像/状态指示 */}
+                             <div className="flex items-center justify-center gap-3 mb-2">
+                               <div className="w-10 h-10 rounded-full bg-[#D40000]/20 flex items-center justify-center border border-[#D40000]/30">
+                                 <Cpu size={20} className="text-[#D40000] animate-pulse" />
                                </div>
-                               <p className="text-2xl font-medium leading-relaxed italic text-white/90 font-serif px-6 min-h-[4em] flex items-center justify-center">
+                               <div className="flex gap-1">
+                                 <div className="w-2 h-2 bg-[#D40000] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                 <div className="w-2 h-2 bg-[#D40000] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                 <div className="w-2 h-2 bg-[#D40000] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                               </div>
+                             </div>
+
+                             {/* 主要思考状态 */}
+                             <div className="space-y-2">
+                               <p className="text-2xl font-medium text-white/95 transition-all duration-500">
+                                 {thinkingState.main}
+                               </p>
+                               <p className="text-sm text-zinc-500 mono">
+                                 {thinkingState.sub}
+                               </p>
+                             </div>
+
+                             {/* 进度指示 */}
+                             <div className="flex items-center justify-center gap-2 pt-4">
+                               {AI_THINKING_STATES.map((_, i) => (
+                                 <div
+                                   key={i}
+                                   className={`h-1 rounded-full transition-all duration-300 ${i <= thinkingIndex ? 'w-6 bg-[#D40000]' : 'w-2 bg-zinc-800'}`}
+                                 />
+                               ))}
+                             </div>
+
+                             {/* 小贴士 - 更小更低调 */}
+                             <div className="mt-8 pt-6 border-t border-white/5">
+                               <div className="flex items-center justify-center gap-2 text-zinc-600 mono text-[10px] mb-2">
+                                 <Lightbulb size={12} /> TIP
+                               </div>
+                               <p className="text-sm text-zinc-500 italic leading-relaxed px-4">
                                  {currentTip}
                                </p>
                              </div>
-                             
-                             <div className="mono text-[8px] text-zinc-700 tracking-widest uppercase mt-8">Establishing_Aesthetic_Criteria...</div>
                           </div>
-                          
+
                           {/* 背景装饰 */}
-                          <div className="absolute top-10 left-10 w-20 h-[1px] bg-white/10"></div>
-                          <div className="absolute bottom-10 right-10 w-20 h-[1px] bg-white/10"></div>
+                          <div className="absolute top-10 left-10 w-20 h-[1px] bg-white/5"></div>
+                          <div className="absolute bottom-10 right-10 w-20 h-[1px] bg-white/5"></div>
                         </div>
                       )}
                       <img src={currentUpload} className="max-w-full max-h-[50vh] sm:max-h-[60vh] object-contain shadow-[0_40px_100px_rgba(0,0,0,0.9)] border border-white/10 p-1 bg-zinc-900" alt="Preview" />
@@ -294,17 +350,17 @@ const App: React.FC = () => {
               <div className={`border-t border-white/10 bg-black/60 backdrop-blur-md transition-all duration-700 ${currentResult ? 'opacity-100' : 'opacity-80'}`}>
                 <div className="p-8 sm:p-10 lg:p-12 grid grid-cols-1 md:grid-cols-12 gap-10 items-start">
                   <div className="md:col-span-5 space-y-8">
-                    <header className="flex items-center gap-3 mono text-[11px] text-[#D40000] font-bold tracking-widest uppercase"><Cpu size={14}/> EXIF_METADATA</header>
+                    <header className="flex items-center gap-3 mono text-xs text-[#D40000] font-bold tracking-widest uppercase"><Cpu size={14}/> EXIF_METADATA</header>
                     <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                       {currentExif ? (
                         Object.entries(currentExif).map(([key, value]) => (
                           <div key={key} className="space-y-1">
-                            <span className="mono text-[8px] text-zinc-700 uppercase block tracking-wider font-bold">{key}</span>
+                            <span className="mono text-[10px] text-zinc-700 uppercase block tracking-wider font-bold">{EXIF_LABELS[key] || key}</span>
                             <span className="mono text-sm text-zinc-300 font-bold truncate block">{value as string}</span>
                           </div>
                         ))
                       ) : (
-                        <div className="col-span-2 mono text-[10px] text-zinc-900 italic uppercase">Awaiting_Data...</div>
+                        <div className="col-span-2 mono text-xs text-zinc-900 italic uppercase">Awaiting_Data...</div>
                       )}
                     </div>
                     {currentUpload && (
@@ -315,21 +371,25 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="md:col-span-7 md:border-l border-white/5 md:pl-10 space-y-8">
-                     <div className="space-y-4">
-                        <label className="mono text-[11px] text-zinc-600 tracking-widest uppercase font-bold flex items-center gap-2"><div className="w-1.5 h-1.5 bg-[#D40000]"></div> Creator_Context</label>
-                        <textarea 
-                          value={userNote} 
-                          onChange={(e) => setUserNote(e.target.value)} 
-                          className="w-full bg-zinc-900/10 border border-white/5 p-6 mono text-base focus:border-white/20 focus:outline-none min-h-[120px] leading-relaxed transition-colors placeholder:text-zinc-900 rounded-sm" 
-                          placeholder="输入拍摄时的动机或感悟..." 
+                     <div className="space-y-4 p-6 bg-zinc-900/30 border border-white/10 rounded-sm">
+                        <label className="mono text-xs text-[#D40000] tracking-widest uppercase font-bold flex items-center gap-2">
+                          <div className="w-2 h-2 bg-[#D40000] rounded-full animate-pulse"></div>
+                          Creator_Context
+                        </label>
+                        <p className="text-xs text-zinc-600 leading-relaxed">记录拍摄时的地点、心情和创作意图，帮助 AI 更好地理解你的作品</p>
+                        <textarea
+                          value={userNote}
+                          onChange={(e) => setUserNote(e.target.value)}
+                          className="w-full bg-black/50 border border-white/10 p-5 mono text-sm focus:border-[#D40000]/50 focus:outline-none min-h-[100px] leading-relaxed transition-colors placeholder:text-zinc-700 rounded-sm"
+                          placeholder="📍 地点：上海外滩&#10;💭 心情：黄昏时分的宁静...&#10;🎯 意图：想捕捉城市与自然光的对话"
                         />
                      </div>
                      
                      {currentResult && (
                        <div className="p-8 bg-zinc-900/30 border border-white/5 rounded-sm space-y-6 animate-in fade-in duration-1000 shadow-2xl">
                           <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                             <div className="flex items-center gap-3 text-zinc-600 mono text-[10px] font-bold uppercase tracking-widest"><Instagram size={16}/> Instagram_Kit</div>
-                             <button onClick={copyIns} className="text-zinc-600 hover:text-white transition-all flex items-center gap-2 mono text-[10px]">
+                             <div className="flex items-center gap-3 text-zinc-600 mono text-xs font-bold uppercase tracking-widest"><Instagram size={16}/> Instagram_Kit</div>
+                             <button onClick={copyIns} className="text-zinc-600 hover:text-white transition-all flex items-center gap-2 mono text-xs">
                                 {copied ? 'DONE' : 'COPY'} {copied ? <Check size={14} className="text-green-500"/> : <Copy size={14}/>}
                              </button>
                           </div>
@@ -337,7 +397,7 @@ const App: React.FC = () => {
                             <p className="text-sm text-zinc-300 italic font-light leading-relaxed">"{currentResult.analysis.instagramCaption}"</p>
                             <div className="flex flex-wrap gap-2 pt-2">
                               {currentResult.analysis.instagramHashtags?.map(tag => (
-                                <span key={tag} className="text-[10px] text-[#D40000] mono font-medium">{tag}</span>
+                                <span key={tag} className="text-xs text-[#D40000] mono font-medium">{tag}</span>
                               ))}
                             </div>
                           </div>
@@ -352,13 +412,13 @@ const App: React.FC = () => {
             <div className={`transition-all duration-1000 ease-in-out border-l border-white/10 overflow-y-auto bg-black shadow-[0_0_100px_rgba(0,0,0,1)] z-10 ${currentResult ? 'lg:w-[50%] w-full' : 'lg:w-[460px] w-full'}`}>
               <div className="p-8 sm:p-12 lg:p-16 space-y-16">
                 <header className="space-y-4">
-                  <div className="flex items-center gap-3"><div className="w-3 h-3 bg-[#D40000]"></div><span className="mono text-[11px] font-bold tracking-widest text-[#D40000]">AUDIT_REPORT_v8.0</span></div>
+                  <div className="flex items-center gap-3"><div className="w-3 h-3 bg-[#D40000]"></div><span className="mono text-xs font-bold tracking-widest text-[#D40000]">AUDIT_REPORT_v8.0</span></div>
                   <h2 className="text-6xl font-black italic tracking-tighter uppercase leading-none">Audit</h2>
                 </header>
 
                 {!currentResult ? (
                   <div className="space-y-12">
-                    <p className="text-zinc-600 text-lg leading-relaxed font-light">
+                    <p className="text-zinc-600 text-base leading-relaxed font-light">
                       AI 评论家将对影像的构图意图、影调控制及叙事逻辑进行非情感化的深度审计。
                       <br/><br/>
                       本系统遵循严格的评分哲学：只有具备明确创作意图的作品才能获得及格以上的评价。
@@ -375,7 +435,7 @@ const App: React.FC = () => {
                   <div className="space-y-20 animate-in slide-in-from-right-12 duration-1000">
                     <div className="space-y-12">
                       <div className="space-y-6">
-                        <div className="flex items-center gap-3 text-[#D40000] mono text-[11px] font-bold uppercase tracking-widest"><TypeIcon size={18}/> Suggested_Titles</div>
+                        <div className="flex items-center gap-3 text-[#D40000] mono text-xs font-bold uppercase tracking-widest"><TypeIcon size={18}/> Suggested_Titles</div>
                         <div className="flex flex-wrap gap-3">
                           {currentResult.analysis.suggestedTitles?.map(title => (
                             <button 
@@ -390,24 +450,24 @@ const App: React.FC = () => {
                       </div>
 
                       <div className="space-y-6">
-                        <div className="flex items-center gap-3 text-zinc-700 mono text-[11px] font-bold uppercase tracking-widest"><TagIcon size={18}/> Vision_Tags</div>
+                        <div className="flex items-center gap-3 text-zinc-700 mono text-xs font-bold uppercase tracking-widest"><TagIcon size={18}/> Vision_Tags</div>
                         <div className="flex flex-wrap gap-3">
                           {currentResult.analysis.suggestedTags?.map(tag => (
-                            <span key={tag} className="px-5 py-2 mono text-[11px] bg-zinc-900 border border-white/5 text-zinc-400 rounded-sm uppercase tracking-tighter">{tag}</span>
+                            <span key={tag} className="px-5 py-2 mono text-xs bg-zinc-900 border border-white/5 text-zinc-400 rounded-sm uppercase tracking-tighter">{tag}</span>
                           ))}
                         </div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-x-12 gap-y-16">
-                      <ScoreMeter score={currentResult.scores.composition} label="COMPOSITION" color="#D40000" />
-                      <ScoreMeter score={currentResult.scores.light} label="LIGHTING" color="#D40000" />
-                      <ScoreMeter score={currentResult.scores.content} label="NARRATIVE" color="#D40000" />
-                      <ScoreMeter score={currentResult.scores.completeness} label="EXPRESSION" color="#D40000" />
+                      <ScoreMeter score={currentResult.scores.composition} label="构图" color="#D40000" />
+                      <ScoreMeter score={currentResult.scores.light} label="光影" color="#D40000" />
+                      <ScoreMeter score={currentResult.scores.content} label="叙事" color="#D40000" />
+                      <ScoreMeter score={currentResult.scores.completeness} label="表达" color="#D40000" />
                     </div>
-                    
+
                     <div className="pt-10 border-t border-white/10">
-                      <ScoreMeter score={currentResult.scores.overall} label="FINAL_VERDICT" color="#fff" />
+                      <ScoreMeter score={currentResult.scores.overall} label="综合评分" color="#fff" />
                     </div>
 
                     <div className="space-y-20 pt-10 border-t border-white/10">
@@ -415,7 +475,7 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-3 text-[#D40000] mono text-xs font-bold uppercase tracking-widest"><MessageSquare size={20}/> Professional Diagnosis</div>
                         <div className="space-y-6">
                           {currentResult.analysis.diagnosis.split('\n').map((para, i) => (
-                            <p key={i} className={`text-4xl text-zinc-50 leading-snug font-medium font-serif ${i > 0 ? 'border-t border-white/5 pt-6 text-zinc-400 text-3xl' : ''}`}>
+                            <p key={i} className={`text-2xl text-zinc-50 leading-snug font-medium font-serif ${i > 0 ? 'border-t border-white/5 pt-6 text-zinc-400 text-xl' : ''}`}>
                               {para}
                             </p>
                           ))}
@@ -424,12 +484,12 @@ const App: React.FC = () => {
                       
                       <div className="space-y-10">
                         <div className="flex items-center gap-3 text-zinc-600 mono text-xs font-bold uppercase tracking-widest"><ImageIcon size={20}/> Story & Intent</div>
-                        <p className="text-2xl text-zinc-400 italic leading-relaxed border-l-4 border-[#D40000] pl-10 bg-white/[0.01] py-10 rounded-r-sm">"{currentResult.analysis.storyNote}"</p>
+                        <p className="text-xl text-zinc-400 italic leading-relaxed border-l-4 border-[#D40000] pl-10 bg-white/[0.01] py-10 rounded-r-sm">"{currentResult.analysis.storyNote}"</p>
                       </div>
                       
                       <div className="p-12 bg-zinc-900/40 border border-white/5 rounded-sm space-y-8 shadow-inner">
-                         <span className="mono text-[16px] text-[#D40000] font-bold tracking-[0.2em] block uppercase">Evolution Strategy</span>
-                         <p className="text-xl text-zinc-300 leading-relaxed font-light">{currentResult.analysis.improvement}</p>
+                         <span className="mono text-sm text-[#D40000] font-bold tracking-[0.2em] block uppercase">Evolution Strategy</span>
+                         <p className="text-base text-zinc-300 leading-relaxed font-light">{currentResult.analysis.improvement}</p>
                       </div>
                     </div>
                     
@@ -460,7 +520,7 @@ const App: React.FC = () => {
                       <img src={selectedEntry.imageUrl} className="w-full shadow-2xl border border-white/10 p-1 bg-zinc-900" alt="" />
                       <div className="absolute top-4 left-4 flex flex-wrap gap-2">
                         {selectedEntry.tags?.map(t => (
-                          <span key={t} className="bg-black/60 backdrop-blur-md text-white mono text-[10px] px-3 py-1.5 rounded-sm uppercase border border-white/10">{t}</span>
+                          <span key={t} className="bg-black/60 backdrop-blur-md text-white mono text-xs px-3 py-1.5 rounded-sm uppercase border border-white/10">{t}</span>
                         ))}
                       </div>
                     </div>
@@ -481,17 +541,17 @@ const App: React.FC = () => {
                       <div className="mono text-xs text-zinc-800 font-bold uppercase tracking-widest">{selectedEntry.id}</div>
                     </header>
                     <div className="grid grid-cols-2 gap-x-12 gap-y-16">
-                      <ScoreMeter score={selectedEntry.scores.composition} label="COMP" color="#D40000" />
-                      <ScoreMeter score={selectedEntry.scores.light} label="LGT" color="#D40000" />
-                      <ScoreMeter score={selectedEntry.scores.content} label="NARR" color="#D40000" />
-                      <ScoreMeter score={selectedEntry.scores.completeness} label="EXPR" color="#D40000" />
+                      <ScoreMeter score={selectedEntry.scores.composition} label="构图" color="#D40000" />
+                      <ScoreMeter score={selectedEntry.scores.light} label="光影" color="#D40000" />
+                      <ScoreMeter score={selectedEntry.scores.content} label="叙事" color="#D40000" />
+                      <ScoreMeter score={selectedEntry.scores.completeness} label="表达" color="#D40000" />
                     </div>
                     <div className="p-12 border border-white/5 space-y-16 bg-zinc-900/10 backdrop-blur-sm shadow-2xl">
                       <div className="space-y-10">
                         <span className="mono text-xs text-zinc-700 uppercase tracking-widest font-bold block">Audit Conclusion</span>
                         <div className="space-y-6">
                            {selectedEntry.analysis?.diagnosis.split('\n').map((para, i) => (
-                             <p key={i} className={`text-3xl text-zinc-50 font-medium leading-snug font-serif ${i > 0 ? 'text-zinc-400 text-2xl border-t border-white/5 pt-6' : ''}`}>
+                             <p key={i} className={`text-2xl text-zinc-50 font-medium leading-snug font-serif ${i > 0 ? 'text-zinc-400 text-xl border-t border-white/5 pt-6' : ''}`}>
                                {para}
                              </p>
                            ))}
@@ -499,7 +559,7 @@ const App: React.FC = () => {
                       </div>
                       <div className="space-y-10 pt-10 border-t border-white/5">
                         <span className="mono text-xs text-zinc-700 uppercase tracking-widest font-bold block">Creator Notes</span>
-                        <p className="text-3xl text-zinc-400 italic font-light leading-relaxed">"{selectedEntry.notes}"</p>
+                        <p className="text-xl text-zinc-400 italic font-light leading-relaxed">"{selectedEntry.notes}"</p>
                       </div>
                     </div>
                   </div>
@@ -521,7 +581,7 @@ const App: React.FC = () => {
                 </header>
                 <div className="space-y-6">
                   {entries.length === 0 ? (
-                    <div className="py-20 text-center mono text-zinc-800 text-sm tracking-widest uppercase">No_Data_Stored</div>
+                    <div className="py-20 text-center mono text-zinc-800 text-xs tracking-widest uppercase">No_Data_Stored</div>
                   ) : (
                     entries.map(entry => (
                       <div 
@@ -535,12 +595,12 @@ const App: React.FC = () => {
                         </div>
                         <div className="flex-grow grid grid-cols-1 sm:grid-cols-12 gap-12 items-center w-full">
                           <div className="sm:col-span-6 space-y-6">
-                            <span className="mono text-base font-bold text-zinc-700 uppercase group-hover:text-[#D40000] transition-colors">{entry.title || entry.id} // {entry.date}</span>
-                            <p className="text-2xl text-zinc-400 truncate italic font-medium">"{entry.analysis?.diagnosis.split('\n')[0] || entry.notes}"</p>
+                            <span className="mono text-sm font-bold text-zinc-700 uppercase group-hover:text-[#D40000] transition-colors">{entry.title || entry.id} // {entry.date}</span>
+                            <p className="text-xl text-zinc-400 truncate italic font-medium">"{entry.analysis?.diagnosis.split('\n')[0] || entry.notes}"</p>
                           </div>
                           <div className="sm:col-span-4 flex gap-16">
-                            <ScoreMeter score={entry.scores.composition} label="COMP" small />
-                            <ScoreMeter score={entry.scores.content} label="NARR" small />
+                            <ScoreMeter score={entry.scores.composition} label="构图" small />
+                            <ScoreMeter score={entry.scores.content} label="叙事" small />
                           </div>
                           <div className="sm:col-span-2 text-right hidden sm:block">
                             <span className="mono text-8xl font-black italic group-hover:text-white transition-all duration-500">{entry.scores.overall}</span>
