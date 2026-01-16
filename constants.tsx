@@ -1,6 +1,31 @@
 
 import { DailyPrompt, Goal, PhotoEntry } from './types';
 
+// AI 分析时的思考状态
+export const AI_THINKING_STATES = [
+  { main: "正在凝视这张照片...", sub: "试图理解画面的第一印象" },
+  { main: "嗯，让我仔细看看构图", sub: "分析视觉元素的排布" },
+  { main: "光影很有意思...", sub: "解读明暗关系与氛围" },
+  { main: "我在思考这张照片想说什么", sub: "探索叙事与情感表达" },
+  { main: "正在组织我的想法", sub: "整合技术分析与感性认知" },
+  { main: "快好了，正在斟酌措辞", sub: "确保反馈诚实且有建设性" },
+];
+
+// EXIF 字段显示标签
+export const EXIF_LABELS: Record<string, string> = {
+  camera: 'CAMERA',
+  aperture: 'APERTURE',
+  shutterSpeed: 'SHUTTER',
+  iso: 'ISO',
+  focalLength: 'FOCAL',
+};
+
+// 文件和使用限制
+export const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+export const DAILY_LIMIT = 5;
+export const STORAGE_KEY = 'photopath_daily_usage';
+export const CACHE_KEY = 'photopath_image_cache';
+
 export const PHOTO_TIPS = [
   "尝试‘三分法’构图，将主体放在画面的黄金分割点上。",
   "清晨和傍晚的‘黄金时刻’光线最柔和，最适合人像拍摄。",

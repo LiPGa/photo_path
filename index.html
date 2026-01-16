@@ -17,6 +17,11 @@
             color: #ffffff;
             overflow-x: hidden;
             -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation; /* Disable double-tap zoom for faster taps */
+        }
+        /* Faster touch response on buttons */
+        button, [role="button"], a {
+            touch-action: manipulation;
         }
         .mono { font-family: 'IBM Plex Mono', monospace; }
         
@@ -75,7 +80,7 @@
         /* Mobile specific adjustments */
         @media (max-width: 640px) {
             .mobile-bottom-nav {
-                height: 70px;
+                height: 80px; /* Increased for larger touch targets */
                 width: 100% !important;
                 flex-direction: row !important;
                 bottom: 0;
@@ -83,16 +88,16 @@
                 left: 0 !important;
                 border-right: none !important;
                 border-top: 1px solid rgba(255, 255, 255, 0.1);
-                padding: 0 10px !important;
+                padding: 0 20px !important; /* More horizontal padding */
                 justify-content: space-around !important;
                 background: rgba(0, 0, 0, 0.95);
                 backdrop-filter: blur(15px);
                 padding-bottom: env(safe-area-inset-bottom) !important;
-                height: calc(70px + env(safe-area-inset-bottom)) !important;
+                height: calc(80px + env(safe-area-inset-bottom)) !important;
             }
             .main-content {
                 padding-left: 0 !important;
-                padding-bottom: calc(85px + env(safe-area-inset-bottom)) !important;
+                padding-bottom: calc(95px + env(safe-area-inset-bottom)) !important; /* Match new nav height */
             }
             .mobile-stack {
                 flex-direction: column !important;
