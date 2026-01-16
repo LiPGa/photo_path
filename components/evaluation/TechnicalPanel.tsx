@@ -80,10 +80,10 @@ export const TechnicalPanel: React.FC<TechnicalPanelProps> = ({
             </div>
             <div className="space-y-4">
               <p className="text-sm text-zinc-300 italic font-light leading-relaxed">
-                "{currentResult.analysis.instagramCaption}"
+                "{currentResult.analysis?.instagramCaption || ''}"
               </p>
               <div className="flex flex-wrap gap-2 pt-2">
-                {currentResult.analysis.instagramHashtags?.map((tag) => (
+                {currentResult.analysis?.instagramHashtags?.map((tag) => (
                   <span key={tag} className="text-xs text-[#D40000] mono font-medium">
                     {tag.startsWith('#') ? tag : `#${tag}`}
                   </span>

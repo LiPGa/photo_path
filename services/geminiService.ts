@@ -174,7 +174,15 @@ export async function analyzePhoto(imageUri: string, technicalContext: any): Pro
       }
     });
 
-    return JSON.parse(response.text || "{}");
+    const result = JSON.parse(response.text || "{}");
+
+    // Validate response structure
+    if (!result.scores || !result.analysis) {
+      console.error("Invalid API response structure:", result);
+      throw new Error("API 返回数据格式错误");
+    }
+
+    return result;
   } catch (error) {
     console.error("AI Analysis Error:", error);
     throw error;

@@ -161,10 +161,12 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
   };
 
   const handleCopyInstagram = () => {
-    if (!currentResult) return;
-    const text = `${currentResult.analysis.instagramCaption}\n\n${currentResult.analysis.instagramHashtags
+    if (!currentResult?.analysis) return;
+    const caption = currentResult.analysis.instagramCaption || '';
+    const hashtags = currentResult.analysis.instagramHashtags
       ?.map((tag) => (tag.startsWith('#') ? tag : `#${tag}`))
-      .join(' ')}`;
+      .join(' ') || '';
+    const text = `${caption}\n\n${hashtags}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

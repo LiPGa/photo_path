@@ -235,7 +235,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
                 <MessageSquare size={18} /> 专业诊断
               </div>
               <div className="space-y-4">
-                {currentResult.analysis.diagnosis.split('\n').map((para, i) => (
+                {(currentResult.analysis?.diagnosis || '').split('\n').map((para, i) => (
                   <p
                     key={i}
                     className={`text-base text-zinc-200 leading-relaxed ${i > 0 ? 'text-zinc-400' : ''}`}
@@ -252,7 +252,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
                 <Lightbulb size={16} /> 进化策略
               </span>
               <p className="text-lg text-zinc-100 leading-relaxed">
-                {currentResult.analysis.improvement}
+                {currentResult.analysis?.improvement || ''}
               </p>
             </div>
 
@@ -262,7 +262,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
                 <ImageIcon size={14} /> Story
               </div>
               <p className="text-sm text-zinc-500 italic leading-relaxed pl-4 border-l-2 border-zinc-800">
-                "{currentResult.analysis.storyNote}"
+                "{currentResult.analysis?.storyNote || ''}"
               </p>
             </div>
           </div>
