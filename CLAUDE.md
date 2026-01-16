@@ -16,8 +16,8 @@ npm run preview      # Preview production build
 Set environment variables in `.env.local`:
 
 ```bash
-# Gemini API Key (必需)
-GEMINI_API_KEY=your_api_key_here
+# Gemini API Key (必需) - 注意：必须使用 VITE_ 前缀才能在浏览器中访问
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
 
 # Mock 模式 - 本地测试时跳过 API 调用，返回模拟数据 (可选)
 VITE_MOCK_API=true
@@ -25,9 +25,17 @@ VITE_MOCK_API=true
 # Supabase (可选 - 用于用户认证和数据持久化)
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Cloudinary (可选 - 用于图片上传)
+VITE_CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+VITE_CLOUDINARY_UPLOAD_PRESET=your_upload_preset
 ```
 
-**本地开发时**建议开启 `VITE_MOCK_API=true` 节省 API 配额。部署时设为 `false` 或删除。
+**重要提示：**
+1. **必须使用 `VITE_` 前缀**：只有以 `VITE_` 开头的环境变量才会被 Vite 暴露到浏览器代码中
+2. **创建 `.env.local` 文件**：在项目根目录创建此文件（`.env.local` 不会被提交到 Git）
+3. **重启开发服务器**：修改 `.env.local` 后必须重启 `npm run dev` 才能生效
+4. **本地开发时**建议开启 `VITE_MOCK_API=true` 节省 API 配额。部署时设为 `false` 或删除。
 
 ## Architecture
 

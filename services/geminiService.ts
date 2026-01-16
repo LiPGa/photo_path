@@ -57,9 +57,9 @@ export async function analyzePhoto(imageUri: string, technicalContext: any): Pro
     return getMockResponse();
   }
 
-  const apiKey = import.meta.env.GEMINI_API_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("未检测到 GEMINI_API_KEY，请在 .env.local 中配置");
+    throw new Error("未检测到 VITE_GEMINI_API_KEY，请在 .env.local 中配置");
   }
 
   const ai = new GoogleGenAI({ apiKey });
