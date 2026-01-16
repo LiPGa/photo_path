@@ -10,31 +10,31 @@ interface PhotoDetailProps {
 }
 
 export const PhotoDetail: React.FC<PhotoDetailProps> = ({ entry, onBack }) => (
-  <div className="space-y-24">
+  <div className="space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
     <button
       onClick={onBack}
-      className="flex items-center gap-3 mono text-sm text-zinc-500 hover:text-white uppercase tracking-[0.2em] transition-all group p-3 -ml-3 rounded-lg active:scale-95 active:bg-white/5"
+      className="group flex items-center gap-3 text-sm text-zinc-500 hover:text-white transition-colors pl-1"
     >
-      <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center group-hover:border-white/30 transition-colors">
-        <ArrowLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+        <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
       </div>
-      <span className="hidden sm:inline">BACK_TO_LIST</span>
+      <span className="font-medium tracking-wide">Back to Timeline</span>
     </button>
 
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
       {/* Image Column */}
-      <div className="lg:col-span-7 space-y-16">
-        <div className="relative">
+      <div className="lg:col-span-7 space-y-12">
+        <div className="relative group">
           <img
             src={entry.imageUrl}
-            className="w-full shadow-2xl border border-white/10 p-1 bg-zinc-900"
+            className="w-full shadow-2xl rounded-sm bg-zinc-900"
             alt=""
           />
-          <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+          <div className="absolute top-4 left-4 flex flex-wrap gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
             {entry.tags?.map((t) => (
               <span
                 key={t}
-                className="bg-black/60 backdrop-blur-md text-white mono text-xs px-3 py-1.5 rounded-sm uppercase border border-white/10"
+                className="bg-black/40 backdrop-blur-md text-white/90 text-[10px] px-2 py-1 rounded-full uppercase tracking-wider font-medium"
               >
                 {t}
               </span>
@@ -42,74 +42,76 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({ entry, onBack }) => (
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-8 mono text-sm text-[#D40000] uppercase font-bold border-t border-white/5 pt-12">
-          <div className="flex items-center gap-3 text-zinc-200">
-            <Camera size={22} className="text-[#D40000]" /> {entry.params?.camera}
+        <div className="flex flex-wrap gap-x-8 gap-y-4 text-xs font-medium uppercase tracking-widest pt-8 border-t border-white/5">
+          <div className="flex items-center gap-2 text-zinc-300">
+            <Camera size={16} className="text-zinc-500" /> 
+            <span>{entry.params?.camera}</span>
           </div>
           <div className="text-zinc-500">{entry.params?.aperture}</div>
           <div className="text-zinc-500">{entry.params?.shutterSpeed}</div>
           <div className="text-zinc-500">{entry.params?.iso}</div>
         </div>
 
-        <Histogram imageUrl={entry.imageUrl} className="w-full sm:w-96" />
+        <div className="pt-4">
+          <Histogram imageUrl={entry.imageUrl} className="w-full sm:w-full opacity-60 rounded-lg" />
+        </div>
       </div>
 
       {/* Info Column */}
-      <div className="lg:col-span-5 space-y-20">
-        <header className="space-y-8">
-          <div className="mono text-sm text-[#D40000] font-bold tracking-widest uppercase flex items-center gap-4">
-            <div className="w-8 h-[1px] bg-[#D40000]"></div> {entry.date}
+      <div className="lg:col-span-5 space-y-16">
+        <header className="space-y-6">
+          <div className="flex items-center gap-3 text-xs font-medium tracking-widest uppercase text-zinc-500">
+            <span className="text-zinc-300">{entry.date}</span>
+            <span className="w-px h-3 bg-zinc-800" />
+            <span>#{entry.id.slice(0, 8)}</span>
           </div>
-          <h2 className="text-8xl font-black italic uppercase leading-none tracking-tighter">
+          
+          <h2 className="text-5xl sm:text-6xl font-light text-zinc-100 leading-tight tracking-tight">
             {entry.title}
           </h2>
-          <div className="mono text-xs text-zinc-800 font-bold uppercase tracking-widest">
-            {entry.id}
-          </div>
         </header>
 
-        <div className="grid grid-cols-2 gap-x-12 gap-y-16">
-          <ScoreMeter score={entry.scores.composition} label="构图" color="#D40000" />
-          <ScoreMeter score={entry.scores.light} label="光影" color="#D40000" />
-          <ScoreMeter score={entry.scores.content} label="叙事" color="#D40000" />
-          <ScoreMeter score={entry.scores.completeness} label="表达" color="#D40000" />
+        <div className="grid grid-cols-2 gap-x-8 gap-y-12">
+          <ScoreMeter score={entry.scores.composition} label="Composition" color="#e4e4e7" />
+          <ScoreMeter score={entry.scores.light} label="Lighting" color="#e4e4e7" />
+          <ScoreMeter score={entry.scores.content} label="Story" color="#e4e4e7" />
+          <ScoreMeter score={entry.scores.completeness} label="Impact" color="#e4e4e7" />
         </div>
 
-        <div className="p-12 border border-white/5 space-y-16 bg-zinc-900/10 backdrop-blur-sm shadow-2xl">
-          <div className="space-y-10">
-            <span className="mono text-xs text-zinc-700 uppercase tracking-widest font-bold block">
-              Audit Conclusion
+        <div className="space-y-12">
+          <div className="space-y-6">
+            <span className="text-xs text-zinc-500 uppercase tracking-widest font-bold block">
+              Analysis
             </span>
-            <div className="space-y-6">
+            <div className="space-y-4">
               {entry.analysis?.diagnosis.split('\n').map((para, i) => (
                 <p
                   key={i}
-                  className={`text-2xl text-zinc-50 font-medium leading-snug font-serif ${
-                    i > 0 ? 'text-zinc-400 text-xl border-t border-white/5 pt-6' : ''
-                  }`}
+                  className="text-lg text-zinc-300 font-light leading-relaxed"
                 >
                   {para}
                 </p>
               ))}
             </div>
           </div>
+
           {/* Evolution Strategy */}
           {entry.analysis?.improvement && (
-            <div className="p-8 bg-[#D40000]/10 border border-[#D40000]/20 rounded-sm space-y-4">
-              <span className="mono text-sm text-[#D40000] font-bold tracking-[0.2em] block uppercase flex items-center gap-2">
-                <Lightbulb size={16} /> 进化策略
+            <div className="p-6 bg-white/5 rounded-xl space-y-3">
+              <span className="text-xs text-zinc-400 font-bold tracking-widest uppercase flex items-center gap-2">
+                <Lightbulb size={14} /> Improvement Strategy
               </span>
-              <p className="text-lg text-zinc-100 leading-relaxed">
+              <p className="text-base text-zinc-200 leading-relaxed font-light">
                 {entry.analysis.improvement}
               </p>
             </div>
           )}
 
-          <div className="space-y-10 pt-10 border-t border-white/5">
-            <span className="mono text-xs text-zinc-700 uppercase tracking-widest font-bold block">
-              Creator Notes
+          <div className="space-y-4 pt-8 border-t border-white/5">
+            <span className="text-xs text-zinc-500 uppercase tracking-widest font-bold block">
+              Notes
             </span>
-            <p className="text-xl text-zinc-400 italic font-light leading-relaxed">
+            <p className="text-base text-zinc-400 italic font-light leading-relaxed">
               "{entry.notes}"
             </p>
           </div>

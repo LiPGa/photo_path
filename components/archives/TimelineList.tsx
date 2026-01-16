@@ -6,22 +6,22 @@ import { useThumbnail } from '../../hooks/useThumbnail';
 
 // Skeleton loader for initial timeline loading
 const TimelineSkeleton = () => (
-  <div className="relative animate-pulse">
-    <div className="absolute left-4 sm:left-8 top-0 bottom-0 w-px bg-zinc-800" />
+  <div className="relative animate-pulse pl-4 sm:pl-0">
+    <div className="absolute left-8 sm:left-[3.25rem] top-0 bottom-0 w-px bg-zinc-800" />
     {[1, 2].map((group) => (
-      <div key={group} className="mb-16">
-        <div className="flex items-center gap-4 mb-8 pl-4 sm:pl-8">
-          <div className="w-3 h-3 bg-zinc-700 rounded-full" />
-          <div className="h-5 w-20 bg-zinc-800 rounded" />
+      <div key={group} className="mb-20">
+        <div className="flex items-center gap-6 mb-8 pl-0 sm:pl-8">
+          <div className="w-2.5 h-2.5 bg-zinc-800 rounded-full ml-[1.15rem] sm:ml-0.5" />
+          <div className="h-6 w-24 bg-zinc-900 rounded" />
         </div>
-        <div className="pl-12 sm:pl-20 space-y-4">
+        <div className="pl-8 sm:pl-20 space-y-6">
           {[1, 2, 3].map((item) => (
-            <div key={item} className="bg-zinc-900/30 border border-white/5 rounded-lg p-4 flex gap-4">
-              <div className="w-20 h-20 sm:w-28 sm:h-28 bg-zinc-800 rounded flex-shrink-0" />
-              <div className="flex-grow space-y-3 py-1">
-                <div className="h-4 w-32 bg-zinc-800 rounded" />
-                <div className="h-3 w-48 bg-zinc-800/50 rounded" />
-                <div className="h-6 w-12 bg-zinc-800 rounded mt-auto" />
+            <div key={item} className="p-4 flex gap-6">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 bg-zinc-900 rounded-xl flex-shrink-0" />
+              <div className="flex-grow space-y-3 py-2">
+                <div className="h-5 w-48 bg-zinc-900 rounded" />
+                <div className="h-3 w-24 bg-zinc-900/50 rounded" />
+                <div className="h-4 w-full max-w-md bg-zinc-900/30 rounded mt-4" />
               </div>
             </div>
           ))}
@@ -57,16 +57,16 @@ const TimelineEntry = memo(({
   return (
     <div
       onClick={onSelect}
-      className="bg-zinc-900/30 border border-white/5 rounded-lg p-4 flex gap-4 hover:bg-zinc-900/60 hover:border-white/10 transition-all group cursor-pointer active:scale-[0.98] active:bg-zinc-900/80"
+      className="group flex gap-6 p-4 rounded-2xl hover:bg-white/5 transition-all duration-300 cursor-pointer"
     >
       {/* Thumbnail */}
-      <div className="w-20 h-20 sm:w-28 sm:h-28 bg-zinc-900 rounded overflow-hidden flex-shrink-0">
+      <div className="w-24 h-24 sm:w-32 sm:h-32 bg-zinc-900 rounded-xl overflow-hidden flex-shrink-0 shadow-lg shadow-black/20">
         {(!isCloudinary && loading) || !thumbnailSrc ? (
           <div className="w-full h-full bg-zinc-800 animate-pulse" />
         ) : (
           <img
             src={thumbnailSrc}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
             alt=""
             loading="lazy"
           />
@@ -74,32 +74,32 @@ const TimelineEntry = memo(({
       </div>
 
       {/* Info */}
-      <div className="flex-grow min-w-0 flex flex-col justify-between py-1">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-white truncate">
+      <div className="flex-grow min-w-0 flex flex-col justify-center py-2">
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-medium text-zinc-200 truncate group-hover:text-white transition-colors">
               {entry.title || 'Untitled'}
             </span>
-            <span className="text-xs text-zinc-600 mono flex-shrink-0">
-              {entry.date?.split('.')[2] || ''}
+            <span className="text-xl font-light text-zinc-400 group-hover:text-white transition-colors">
+              {entry.scores.overall?.toFixed(1)}
             </span>
           </div>
-          <p className="text-sm text-zinc-500 truncate">
-            {entry.analysis?.diagnosis.split('\n')[0].slice(0, 50) || entry.notes}
-          </p>
+          
+          <div className="flex items-center gap-3 text-xs text-zinc-500 font-medium tracking-wide uppercase">
+            <span>{entry.date?.split('.')[2] || ''}</span>
+            <span className="w-1 h-1 rounded-full bg-zinc-700" />
+            <span>{entry.params?.camera}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-4 mt-2">
-          <span className="text-xs text-zinc-600">{entry.params?.camera}</span>
-          <span className="text-2xl font-black text-[#D40000]">
-            {entry.scores.overall?.toFixed(1)}
-          </span>
-        </div>
+
+        <p className="text-sm text-zinc-500 truncate mt-3 font-light leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity">
+          {entry.analysis?.diagnosis.split('\n')[0].slice(0, 60) || entry.notes}
+        </p>
       </div>
 
-      <ChevronRight
-        size={20}
-        className="text-zinc-700 group-hover:text-white self-center flex-shrink-0"
-      />
+      <div className="flex items-center justify-center pl-4 opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0 duration-300">
+        <ChevronRight size={20} className="text-zinc-600" />
+      </div>
     </div>
   );
 });
@@ -174,21 +174,23 @@ export const TimelineList: React.FC<TimelineListProps> = ({ entries, onSelectEnt
   });
 
   return (
-    <div className="relative">
+    <div className="relative pl-4 sm:pl-0">
       {/* Timeline line */}
-      <div className="absolute left-4 sm:left-8 top-0 bottom-0 w-px bg-zinc-800" />
+      <div className="absolute left-8 sm:left-[3.25rem] top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-zinc-800 to-transparent" />
 
       {Object.entries(groupedEntries).map(([month, monthEntries]: [string, PhotoEntry[]]) => (
-        <div key={month} className="mb-16">
+        <div key={month} className="mb-20 last:mb-0 relative">
           {/* Month header */}
-          <div className="flex items-center gap-4 mb-8 pl-4 sm:pl-8">
-            <div className="w-3 h-3 bg-[#D40000] rounded-full relative z-10 shadow-[0_0_10px_rgba(212,0,0,0.5)]" />
-            <span className="mono text-lg font-bold text-zinc-400 tracking-wider">{month}</span>
-            <span className="text-xs text-zinc-700">{monthEntries.length} 张</span>
+          <div className="flex items-center gap-6 mb-8 pl-0 sm:pl-8 sticky top-4 z-10">
+            <div className="w-2.5 h-2.5 bg-zinc-800 rounded-full ring-4 ring-[#09090b] relative z-10 ml-[1.15rem] sm:ml-0.5" />
+            <div className="flex items-baseline gap-3 backdrop-blur-md bg-[#09090b]/80 py-1 pr-4 rounded-full">
+              <span className="text-xl font-light text-zinc-100 tracking-tight">{month}</span>
+              <span className="text-xs text-zinc-600 font-medium uppercase tracking-wider">{monthEntries.length} Photos</span>
+            </div>
           </div>
 
           {/* Month entries */}
-          <div className="pl-12 sm:pl-20 space-y-4">
+          <div className="pl-8 sm:pl-20 space-y-2">
             {monthEntries.map((entry) => (
               <LazyEntry
                 key={entry.id}

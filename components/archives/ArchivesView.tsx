@@ -18,22 +18,22 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
     {selectedEntry ? (
       <PhotoDetail entry={selectedEntry} onBack={() => onSelectEntry(null)} />
     ) : (
-      <div className="space-y-16">
+      <div className="space-y-24">
         {/* Header */}
-        <header className="border-b border-white/10 pb-16 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-16">
-          <div className="space-y-8">
-            <h2 className="text-7xl sm:text-9xl font-black italic tracking-tighter uppercase leading-none">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-12 pt-12">
+          <div className="space-y-6">
+            <h2 className="text-5xl sm:text-7xl font-light tracking-tight text-zinc-100 leading-none">
               Archives
             </h2>
-            <p className="mono text-sm text-zinc-700 tracking-[0.8em] font-bold uppercase pl-2">
-              Timeline
+            <p className="text-sm text-zinc-500 tracking-widest font-medium uppercase pl-1">
+              Timeline Collection
             </p>
           </div>
-          <div className="mono text-left sm:text-right w-full sm:w-auto p-8 border-l sm:border-l-0 sm:border-r border-white/10">
-            <p className="text-xs text-zinc-800 uppercase tracking-[0.4em] mb-4 font-bold">
-              AVG_SCORE
+          <div className="text-left sm:text-right w-full sm:w-auto">
+            <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2 font-medium">
+              Average Score
             </p>
-            <p className="text-7xl sm:text-9xl font-black text-[#D40000] tracking-tighter leading-none">
+            <p className="text-6xl font-extralight text-zinc-200 tracking-tight leading-none">
               {entries.length
                 ? (entries.reduce((a, b) => a + (b.scores.overall || 0), 0) / entries.length).toFixed(1)
                 : '0.0'}

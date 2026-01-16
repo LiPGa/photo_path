@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 
 // Mock 数据 - 本地测试时使用 (10分制)
@@ -50,7 +49,6 @@ export async function analyzePhoto(imageUri: string, technicalContext: any): Pro
 
   if (useMock) {
     console.log('🔧 Mock 模式: 返回模拟数据，不调用 Gemini API');
-    // 模拟 API 延迟
     await new Promise(resolve => setTimeout(resolve, 2000));
     return MOCK_RESPONSE;
   }
@@ -99,7 +97,7 @@ export async function analyzePhoto(imageUri: string, technicalContext: any): Pro
     【评价要求】
     - 诊断（diagnosis）：
       先指出照片中真实存在、能被感受到的优点或闪光点，
-      描述它们如何影响观看体验。
+      描述它们如何影响观看体验。 
       随后，如果存在问题，请诚实、克制地指出，
       重点说明这些问题是如何削弱画面表达的，而不是简单下结论。
 
