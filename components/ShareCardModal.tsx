@@ -1,7 +1,30 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { X, Camera, Lightbulb, Download, ArrowLeft, CheckCircle } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { X, Camera, Lightbulb, Download, CheckCircle } from 'lucide-react';
+import type { Options as Html2CanvasOptions } from 'html2canvas';
 import { DetailedScores, DetailedAnalysis } from '../types';
+
+// Lazy load html2canvas for faster initial load
+let html2canvasModule: typeof import('html2canvas') | null = null;
+const getHtml2Canvas = async () => {
+  if (!html2canvasModule) {
+    html2canvasModule = await import('html2canvas');
+  }
+  return html2canvasModule.default;
+};
+
+// Detect mobile device once
+const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+// Preload an image and return a promise
+const preloadImage = (src: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+};
 
 interface ExifData {
   camera?: string;
@@ -35,15 +58,19 @@ const dataURLtoBlob = (dataURL: string): Blob => {
 };
 
 // Helper function to download the image
-const downloadImage = async (imageUrl: string, title: string, isMobile: boolean): Promise<boolean> => {
-  const fileName = `photopath_${title || 'insight'}_${Date.now()}.png`;
+const downloadImage = async (imageUrl: string, title: string): Promise<boolean> => {
+  // Detect format from data URL
+  const isJpeg = imageUrl.startsWith('data:image/jpeg');
+  const ext = isJpeg ? 'jpg' : 'png';
+  const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+  const fileName = `photopath_${title || 'insight'}_${Date.now()}.${ext}`;
 
   try {
     const blob = dataURLtoBlob(imageUrl);
 
     // Try Web Share API first (best for mobile)
-    if (isMobile && navigator.share && navigator.canShare) {
-      const file = new File([blob], fileName, { type: 'image/png' });
+    if (isMobileDevice && navigator.share && navigator.canShare) {
+      const file = new File([blob], fileName, { type: mimeType });
       const shareData = { files: [file] };
 
       if (navigator.canShare(shareData)) {
@@ -61,11 +88,11 @@ const downloadImage = async (imageUrl: string, title: string, isMobile: boolean)
     document.body.appendChild(link);
     link.click();
 
-    // Cleanup after a delay to ensure download starts
+    // Cleanup after a short delay to ensure download starts
     setTimeout(() => {
       document.body.removeChild(link);
       URL.revokeObjectURL(blobUrl);
-    }, 1000);
+    }, 300);
 
     return true;
   } catch (err) {
@@ -105,7 +132,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     };
   }, [generatedImageUrl]);
 
-  const generateShareCard = async () => {
+  const generateShareCard = useCallback(async () => {
     if (!shareCardRef.current || isGenerating) return;
 
     setIsGenerating(true);
@@ -118,26 +145,40 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     }
 
     try {
-      // Give the browser a moment to render the element
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Parallel: preload image and html2canvas module simultaneously
+      const [html2canvas, _img] = await Promise.all([
+        getHtml2Canvas(),
+        preloadImage(currentUpload).catch(() => null), // Continue even if preload fails
+      ]);
 
-      const canvasPromise = html2canvas(shareCardRef.current, {
+      // Minimal delay for DOM to settle (reduced from 100ms)
+      await new Promise(resolve => setTimeout(resolve, 16));
+
+      // Optimized settings for mobile - use lower scale for faster generation
+      const canvasOptions: Html2CanvasOptions = {
         backgroundColor: '#000',
-        scale: 2, // Higher resolution
+        scale: isMobileDevice ? 1.5 : 2, // Lower scale on mobile for speed
         useCORS: true,
         logging: false,
         allowTaint: true,
-        imageTimeout: 15000,
-      });
+        imageTimeout: 5000, // Reduced from 15s - image should be preloaded
+      };
 
-      // Add 30 second timeout for the entire generation process
+      const canvasPromise = html2canvas(shareCardRef.current!, canvasOptions);
+
+      // Reduced timeout: 10s for mobile, 15s for desktop
+      const timeout = isMobileDevice ? 10000 : 15000;
       const canvas = await withTimeout(
         canvasPromise,
-        30000,
+        timeout,
         '生成超时，请重试'
       );
 
-      const imageUrl = canvas.toDataURL('image/png', 0.95);
+      // Use JPEG for faster encoding on mobile, PNG for desktop quality
+      const format = isMobileDevice ? 'image/jpeg' : 'image/png';
+      const quality = isMobileDevice ? 0.85 : 0.92;
+      const imageUrl = canvas.toDataURL(format, quality);
+
       setGeneratedImageUrl(imageUrl);
       setGenerationComplete(true);
 
@@ -152,7 +193,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
         shareCardRef.current.style.display = 'none';
       }
     }
-  };
+  }, [currentUpload, isGenerating]);
 
   const handleBack = () => {
     setGeneratedImageUrl(null);
@@ -163,17 +204,16 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     }
   };
 
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!generatedImageUrl || isSaving) return;
 
     setIsSaving(true);
     setError(null);
 
     try {
-      const success = await downloadImage(generatedImageUrl, selectedTitle, isMobile);
+      const success = await downloadImage(generatedImageUrl, selectedTitle);
       if (!success) {
         setError('保存失败，请长按图片手动保存');
       }
@@ -183,7 +223,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [generatedImageUrl, isSaving, selectedTitle]);
 
   return (
     <div
@@ -209,7 +249,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               生成成功
             </h3>
             <p className="text-xs text-zinc-400 mb-4">
-              {isMobile ? '点击按钮保存，或长按图片手动保存' : '点击下方按钮下载图片'}
+              {isMobileDevice ? '点击按钮保存，或长按图片手动保存' : '点击下方按钮下载图片'}
             </p>
             <div className="bg-black rounded-lg p-2 my-4 flex justify-center">
                <img
@@ -231,7 +271,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               ) : (
                 <>
                   <Download size={18} />
-                  <span className="font-medium">{isMobile ? '保存到相册' : '下载长图'}</span>
+                  <span className="font-medium">{isMobileDevice ? '保存到相册' : '下载长图'}</span>
                 </>
               )}
             </button>
