@@ -2,8 +2,9 @@
 export interface DetailedScores {
   composition: number;     // 构图
   light: number;           // 光影
-  content: number;         // 内容/叙事
-  completeness: number;    // 表达完整度
+  color: number;           // 色彩
+  technical: number;       // 技术
+  expression: number;      // 表达
   overall: number;         // 总体
   tilt?: number;
   sharpness?: number;

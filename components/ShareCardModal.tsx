@@ -273,14 +273,15 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
           {/* Scores */}
           <div className="px-6 py-5 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               {[
                 { label: '构图', score: currentResult.scores.composition },
                 { label: '光影', score: currentResult.scores.light },
-                { label: '叙事', score: currentResult.scores.content },
-                { label: '表达', score: currentResult.scores.completeness },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between">
+                { label: '色彩', score: currentResult.scores.color },
+                { label: '技术', score: currentResult.scores.technical },
+                { label: '表达', score: currentResult.scores.expression },
+              ].map((item, idx) => (
+                <div key={item.label} className={`flex items-center justify-between ${idx === 4 ? 'col-span-2' : ''}`}>
                   <span className="text-xs text-zinc-500">{item.label}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">

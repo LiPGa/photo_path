@@ -8,8 +8,9 @@ const getMockResponse = () => ({
   scores: {
     composition: getRandomScore(6.0, 8.5),
     light: getRandomScore(5.5, 8.0),
-    content: getRandomScore(5.0, 7.5),
-    completeness: getRandomScore(6.0, 8.0),
+    color: getRandomScore(6.0, 8.0),
+    technical: getRandomScore(5.5, 7.5),
+    expression: getRandomScore(6.0, 8.5),
     overall: getRandomScore(6.0, 8.0)
   },
   analysis: {
@@ -56,9 +57,9 @@ export async function analyzePhoto(imageUri: string, technicalContext: any): Pro
     return getMockResponse();
   }
 
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey = import.meta.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("未检测到 VITE_GEMINI_API_KEY，请在 .env.local 中配置");
+    throw new Error("未检测到 GEMINI_API_KEY，请在 .env.local 中配置");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -91,11 +92,36 @@ export async function analyzePhoto(imageUri: string, technicalContext: any): Pro
     结合技术与感受，给出诚实而专业的反馈。
 
     【评分要求】（重要：请在 JSON 的 scores 字段中返回以下维度，采用 10 分制，可精确到小数点后一位）
-    1. composition (构图): 评估几何关系、平衡感与视觉引导。
-    2. light (光影): 评估光线性质、明暗对比与影调层次。
-    3. content (内容): 评估叙事性、情绪表达与瞬间抓取。
-    4. completeness (完成度): 评估后期处理、清晰度与整体执行。
-    5. overall (总分): 综合以上维度的整体评价，不应简单取平均值。
+    1. composition (构图):
+      画面布局是否有秩序，主体是否明确，视觉是否平衡，
+      是否存在有效的引导线、前后景关系或留白。
+      背景杂乱、元素堆砌、主体不清晰需扣分。
+
+    2. light (光影):
+      曝光是否准确，光线是否具有方向性与层次，
+      明暗关系是否服务于主体与情绪。
+      死白过曝、灰平顺光、无明暗组织需扣分。
+
+    3. color (色彩):
+      色调是否和谐统一，饱和度与对比是否克制，
+      色彩是否强化情绪或主题表达。
+      杂乱色温、无意识调色、情绪与色彩不匹配需扣分。
+
+    4. technical (技术):
+      清晰度、对焦准确性、噪点控制是否合理，
+      后期是否克制且服务画面。
+      技术缺陷如果削弱观看体验需扣分；
+      若模糊或噪点增强氛围，可酌情正向评价。
+
+    5. expression (表达):
+      是否成功传达情绪、意图或故事，
+      画面是否具有个人视角或可辨识的表达。
+      空洞记录、缺乏指向性的画面需扣分。
+
+    6. overall (总分):
+      综合以上维度的整体印象分，
+      通常与各项评分一致，但可因整体气质、
+      视觉冲击力或独特性略高或略低。
 
     【评分哲学】
     - 普通随手拍、记录照的合理区间为 4.0–6.0 分。
@@ -161,11 +187,12 @@ export async function analyzePhoto(imageUri: string, technicalContext: any): Pro
               properties: {
                 composition: { type: Type.NUMBER },
                 light: { type: Type.NUMBER },
-                content: { type: Type.NUMBER },
-                completeness: { type: Type.NUMBER },
+                color: { type: Type.NUMBER },
+                technical: { type: Type.NUMBER },
+                expression: { type: Type.NUMBER },
                 overall: { type: Type.NUMBER }
               },
-              required: ["composition", "light", "content", "completeness", "overall"]
+              required: ["composition", "light", "color", "technical", "expression", "overall"]
             },
             analysis: {
               type: Type.OBJECT,

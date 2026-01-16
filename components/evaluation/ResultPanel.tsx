@@ -216,8 +216,11 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
           <div className="grid grid-cols-2 gap-x-12 gap-y-16">
             <ScoreMeter score={currentResult.scores.composition} label="构图" color="#D40000" />
             <ScoreMeter score={currentResult.scores.light} label="光影" color="#D40000" />
-            <ScoreMeter score={currentResult.scores.content} label="叙事" color="#D40000" />
-            <ScoreMeter score={currentResult.scores.completeness} label="表达" color="#D40000" />
+            <ScoreMeter score={currentResult.scores.color} label="色彩" color="#D40000" />
+            <ScoreMeter score={currentResult.scores.technical} label="技术" color="#D40000" />
+            <div className="col-span-2">
+              <ScoreMeter score={currentResult.scores.expression} label="表达" color="#D40000" />
+            </div>
           </div>
 
           <div className="pt-10 border-t border-white/10">

@@ -92,9 +92,10 @@ export const INITIAL_ENTRIES: PhotoEntry[] = [
     scores: {
       composition: 6.5,
       light: 7.0,
-      content: 5.5,
-      completeness: 6.0,
-      overall: 6.2
+      color: 7.5,
+      technical: 6.0,
+      expression: 6.0,
+      overall: 6.5
     },
     analysis: {
       diagnosis: "照片成功捕捉到了日落时分温润的光影氛围，色调和谐，给人以宁静的视觉感受。\n但构图上缺乏明确的力量感，背景中杂乱的线条分散了主体的吸引力，属于一张带有美感但缺乏深度的生活记录。",

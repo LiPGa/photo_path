@@ -21,18 +21,20 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
       (acc, entry) => ({
         composition: acc.composition + (entry.scores.composition || 0),
         light: acc.light + (entry.scores.light || 0),
-        content: acc.content + (entry.scores.content || 0),
-        completeness: acc.completeness + (entry.scores.completeness || 0),
+        color: acc.color + (entry.scores.color || 0),
+        technical: acc.technical + (entry.scores.technical || 0),
+        expression: acc.expression + (entry.scores.expression || 0),
       }),
-      { composition: 0, light: 0, content: 0, completeness: 0 }
+      { composition: 0, light: 0, color: 0, technical: 0, expression: 0 }
     );
 
     const count = entries.length;
     const averages = {
       composition: totals.composition / count,
       light: totals.light / count,
-      content: totals.content / count,
-      completeness: totals.completeness / count,
+      color: totals.color / count,
+      technical: totals.technical / count,
+      expression: totals.expression / count,
     };
 
     // Genre detection
@@ -61,8 +63,9 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
     const scoresObj = [
       { key: 'Composition', val: averages.composition },
       { key: 'Light', val: averages.light },
-      { key: 'Content', val: averages.content },
-      { key: 'Completeness', val: averages.completeness },
+      { key: 'Color', val: averages.color },
+      { key: 'Technical', val: averages.technical },
+      { key: 'Expression', val: averages.expression },
     ];
     const strength = scoresObj.sort((a, b) => b.val - a.val)[0].key;
 
@@ -78,8 +81,9 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
     const strengthMap: Record<string, string> = {
       'Composition': '构图',
       'Light': '光影',
-      'Content': '叙事',
-      'Completeness': '完成度'
+      'Color': '色彩',
+      'Technical': '技术',
+      'Expression': '表达'
     };
 
     return { 
@@ -129,15 +133,21 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                         </div>
                      </div>
                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-[10px] uppercase tracking-widest text-zinc-600">Content</span>
+                        <span className="text-[10px] uppercase tracking-widest text-zinc-600">Color</span>
                         <div className="w-24 h-1 bg-zinc-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-zinc-300" style={{ width: `${stats.averages.content * 10}%` }} />
+                          <div className="h-full bg-zinc-300" style={{ width: `${stats.averages.color * 10}%` }} />
                         </div>
                      </div>
                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-[10px] uppercase tracking-widest text-zinc-600">Completeness</span>
+                        <span className="text-[10px] uppercase tracking-widest text-zinc-600">Technical</span>
                         <div className="w-24 h-1 bg-zinc-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-zinc-300" style={{ width: `${stats.averages.completeness * 10}%` }} />
+                          <div className="h-full bg-zinc-300" style={{ width: `${stats.averages.technical * 10}%` }} />
+                        </div>
+                     </div>
+                     <div className="flex flex-col items-end gap-1 col-span-2">
+                        <span className="text-[10px] uppercase tracking-widest text-zinc-600">Expression</span>
+                        <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-zinc-300" style={{ width: `${stats.averages.expression * 10}%` }} />
                         </div>
                      </div>
                   </div>

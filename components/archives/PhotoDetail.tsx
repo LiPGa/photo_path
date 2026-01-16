@@ -73,9 +73,12 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({ entry, onBack }) => (
 
         <div className="grid grid-cols-2 gap-x-8 gap-y-12">
           <ScoreMeter score={entry.scores.composition} label="Composition" color="#e4e4e7" />
-          <ScoreMeter score={entry.scores.light} label="Lighting" color="#e4e4e7" />
-          <ScoreMeter score={entry.scores.content} label="Story" color="#e4e4e7" />
-          <ScoreMeter score={entry.scores.completeness} label="Impact" color="#e4e4e7" />
+          <ScoreMeter score={entry.scores.light} label="Light" color="#e4e4e7" />
+          <ScoreMeter score={entry.scores.color} label="Color" color="#e4e4e7" />
+          <ScoreMeter score={entry.scores.technical} label="Technical" color="#e4e4e7" />
+          <div className="col-span-2">
+            <ScoreMeter score={entry.scores.expression} label="Expression" color="#e4e4e7" />
+          </div>
         </div>
 
         <div className="space-y-12">
