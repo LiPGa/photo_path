@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { X, Camera, Lightbulb, Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { DetailedScores, DetailedAnalysis } from '../types';
@@ -32,91 +32,91 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   const shareCardRef = useRef<HTMLDivElement>(null);
   const [isGeneratingCard, setIsGeneratingCard] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+
+  // Clean up image URL when component unmounts or modal closes
+  useEffect(() => {
+    return () => {
+      if (generatedImageUrl) {
+        URL.revokeObjectURL(generatedImageUrl);
+      }
+    };
+  }, [generatedImageUrl]);
 
   const generateShareCard = async () => {
     if (!shareCardRef.current) return;
     setIsGeneratingCard(true);
     setError(null);
+    setGeneratedImageUrl(null);
 
     try {
-      const canvas = await html2canvas(shareCardRef.current, {
-        backgroundColor: '#000',
-        scale: 2,
-        useCORS: true,
-      });
+      // Wait a bit for any animations or layout to settle
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-      const fileName = `photopath_${selectedTitle || 'insight'}_${Date.now()}.png`;
+      // Generate canvas with better options for long images
+      const canvas = await Promise.race([
+        html2canvas(shareCardRef.current, {
+          backgroundColor: '#000',
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          allowTaint: false,
+          removeContainer: false,
+          imageTimeout: 15000,
+          onclone: (clonedDoc) => {
+            // Ensure the cloned element is visible and properly sized
+            const clonedElement = clonedDoc.querySelector('[data-share-card]');
+            if (clonedElement) {
+              (clonedElement as HTMLElement).style.display = 'block';
+            }
+          },
+        }),
+        new Promise<HTMLCanvasElement>((_, reject) => 
+          setTimeout(() => reject(new Error('生成超时，请重试')), 30000)
+        )
+      ]);
 
-      // Convert canvas to blob for sharing
+      // Convert canvas to blob
       const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create blob'))), 'image/png');
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error('Failed to create blob'))), 
+          'image/png',
+          0.95
+        );
       });
 
-      // Detect iOS devices
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const isAndroid = /Android/i.test(navigator.userAgent);
-      
-      // Create file for sharing
-      const file = new File([blob], fileName, { type: 'image/png' });
-      
-      // Check if Web Share API with file sharing is available
-      const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
-      
-      if (isIOS) {
-        // On iOS, use Web Share API which shows Photos as an option in the share sheet
-        // User can select "Save Image" which saves directly to Photos app
-        if (canShareFiles) {
+      // Create object URL for display and long-press save
+      const imageUrl = URL.createObjectURL(blob);
+      setGeneratedImageUrl(imageUrl);
+      setIsGeneratingCard(false);
+
+      // Auto-trigger share on mobile after a short delay
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        setTimeout(async () => {
           try {
-            await navigator.share({
-              files: [file],
-              title: selectedTitle || 'PhotoPath 点评卡片',
+            const file = new File([blob], `photopath_${selectedTitle || 'insight'}_${Date.now()}.png`, { 
+              type: 'image/png' 
             });
+            const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
+            
+            if (canShareFiles) {
+              await navigator.share({
+                files: [file],
+                title: selectedTitle || 'PhotoPath 点评卡片',
+              });
+            }
           } catch (shareError) {
-            // User cancelled or share failed - this is OK, just return
+            // User cancelled or share failed - that's OK, they can long-press the image
             if ((shareError as Error).name !== 'AbortError') {
-              // If it's not a user cancellation, fall back to download
-              const link = document.createElement('a');
-              link.href = URL.createObjectURL(blob);
-              link.download = fileName;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              URL.revokeObjectURL(link.href);
+              console.log('Share failed, user can long-press image to save');
             }
           }
-        } else {
-          // Fallback for iOS if Web Share API not available
-          // Create download link - user can long-press to save to Photos
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(link.href);
-        }
-      } else if (isAndroid && canShareFiles) {
-        // Use Web Share API for Android
-        await navigator.share({
-          files: [file],
-          title: selectedTitle || 'PhotoPath 点评卡片',
-        });
-      } else {
-        // Fallback to download for desktop and other browsers
-        const link = document.createElement('a');
-        link.download = fileName;
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        URL.revokeObjectURL(link.href);
+        }, 500);
       }
     } catch (err) {
-      // User cancelled share is not an error
-      if ((err as Error).name === 'AbortError') {
-        return;
-      }
       console.error('生成卡片失败:', err);
-      setError('生成卡片失败，请重试');
-    } finally {
+      setError(err instanceof Error ? err.message : '生成卡片失败，请重试');
       setIsGeneratingCard(false);
     }
   };
@@ -138,8 +138,9 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
         {/* Card content */}
         <div
           ref={shareCardRef}
-          className="bg-[#0a0a0a] rounded-lg overflow-hidden"
-          style={{ fontFamily: "'Inter', 'PingFang SC', sans-serif" }}
+          data-share-card
+          className="bg-[#0a0a0a] rounded-lg overflow-hidden w-full"
+          style={{ fontFamily: "'Inter', 'PingFang SC', sans-serif", maxWidth: '600px', margin: '0 auto' }}
         >
           {/* Header */}
           <div className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-white/5">
@@ -224,8 +225,9 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
           {/* Diagnosis summary */}
           <div className="px-4 sm:px-6 pb-4 sm:pb-5">
-            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed line-clamp-3">
-              {currentResult.analysis.diagnosis.split('\n')[0]}
+            <h4 className="text-xs sm:text-sm font-bold text-zinc-300 mb-2">诊断分析</h4>
+            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed whitespace-pre-line">
+              {currentResult.analysis.diagnosis}
             </p>
           </div>
 
@@ -235,9 +237,29 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
               <Lightbulb size={12} className="sm:w-[14px] sm:h-[14px] text-[#D40000]" />
               <span className="text-[11px] sm:text-xs font-bold text-[#D40000]">进化策略</span>
             </div>
-            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed line-clamp-2">
+            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed whitespace-pre-line">
               {currentResult.analysis.improvement}
             </p>
+          </div>
+
+          {/* Story and mood notes */}
+          <div className="px-4 sm:px-6 pb-4 sm:pb-5 space-y-3">
+            {currentResult.analysis.storyNote && (
+              <div>
+                <span className="text-[11px] sm:text-xs text-zinc-500">故事感：</span>
+                <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                  {currentResult.analysis.storyNote}
+                </p>
+              </div>
+            )}
+            {currentResult.analysis.moodNote && (
+              <div>
+                <span className="text-[11px] sm:text-xs text-zinc-500">情绪：</span>
+                <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                  {currentResult.analysis.moodNote}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -249,26 +271,65 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           </div>
         </div>
 
+        {/* Generated image display for long-press save */}
+        {generatedImageUrl && (
+          <div className="mt-4 space-y-3">
+            <div className="bg-zinc-900 rounded-lg p-4">
+              <p className="text-xs text-zinc-400 text-center mb-3">
+                长按图片保存到相册
+              </p>
+              <img
+                src={generatedImageUrl}
+                alt="PhotoPath 点评卡片"
+                className="w-full h-auto rounded-lg"
+                style={{ 
+                  userSelect: 'none', 
+                  WebkitUserSelect: 'none',
+                  touchAction: 'none',
+                  pointerEvents: 'auto'
+                }}
+              />
+            </div>
+            <button
+              onClick={() => {
+                if (generatedImageUrl) {
+                  URL.revokeObjectURL(generatedImageUrl);
+                }
+                setGeneratedImageUrl(null);
+                setError(null);
+              }}
+              className="w-full py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+            >
+              重新生成
+            </button>
+          </div>
+        )}
+
         {/* Error message */}
         {error && (
           <div className="mt-2 text-center text-sm text-red-400">{error}</div>
         )}
 
-        {/* Save/Share button */}
-        <button
-          onClick={generateShareCard}
-          disabled={isGeneratingCard}
-          className="mt-3 sm:mt-4 w-full py-3 sm:py-4 bg-[#D40000] hover:bg-[#B30000] disabled:bg-zinc-800 transition-all rounded-lg flex items-center justify-center gap-3"
-        >
-          {isGeneratingCard ? (
-            <span className="text-sm">生成中...</span>
-          ) : (
-            <>
-              <Download size={18} />
-              <span className="text-sm font-medium">保存卡片</span>
-            </>
-          )}
-        </button>
+        {/* Generate button - only show if image not generated yet */}
+        {!generatedImageUrl && (
+          <button
+            onClick={generateShareCard}
+            disabled={isGeneratingCard}
+            className="mt-3 sm:mt-4 w-full py-3 sm:py-4 bg-[#D40000] hover:bg-[#B30000] disabled:bg-zinc-800 disabled:opacity-50 transition-all rounded-lg flex items-center justify-center gap-3"
+          >
+            {isGeneratingCard ? (
+              <>
+                <span className="text-sm">生成中...</span>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              </>
+            ) : (
+              <>
+                <Download size={18} />
+                <span className="text-sm font-medium">生成长图</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
