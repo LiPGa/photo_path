@@ -23,6 +23,27 @@ const MOCK_RESPONSE = {
   }
 };
 
+// Helper function to fetch image from URL and convert to base64
+async function fetchImageAsBase64(url: string): Promise<{ base64: string; mimeType: string }> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+  }
+  const blob = await response.blob();
+  const mimeType = blob.type || 'image/jpeg';
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.split(',')[1];
+      resolve({ base64, mimeType });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export async function analyzePhoto(imageUri: string, technicalContext: any): Promise<any> {
   // Mock 模式 - 本地测试不调用 API
   const useMock = import.meta.env.VITE_MOCK_API === 'true';
@@ -35,13 +56,24 @@ export async function analyzePhoto(imageUri: string, technicalContext: any): Pro
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  let base64Data = imageUri;
+
+  let base64Data: string;
   let mimeType = 'image/jpeg';
+
   if (imageUri.startsWith('data:')) {
+    // Handle data URL
     const parts = imageUri.split(',');
     mimeType = parts[0].split(':')[1].split(';')[0];
     base64Data = parts[1];
+  } else if (imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
+    // Handle external URL (e.g., Cloudinary)
+    console.log('📷 Fetching image from URL:', imageUri);
+    const imageData = await fetchImageAsBase64(imageUri);
+    base64Data = imageData.base64;
+    mimeType = imageData.mimeType;
+  } else {
+    // Assume it's already base64 data
+    base64Data = imageUri;
   }
 
   const prompt = `
