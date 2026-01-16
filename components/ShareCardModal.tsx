@@ -165,11 +165,11 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
             <p className="text-xs text-zinc-400 mb-4">
               {isMobile ? '长按下方图片即可保存到相册' : '点击下方按钮下载图片'}
             </p>
-            <div className="bg-black rounded-lg p-2 my-4">
+            <div className="bg-black rounded-lg p-2 my-4 flex justify-center">
                <img
                 src={generatedImageUrl}
                 alt="生成的分享卡片"
-                className="w-full h-auto rounded-md"
+                className="max-h-[60vh] w-auto max-w-full rounded-md object-contain"
               />
             </div>
             {!isMobile && (
