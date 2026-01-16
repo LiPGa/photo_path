@@ -57,9 +57,10 @@ export async function analyzePhoto(imageUri: string, technicalContext: any): Pro
     return getMockResponse();
   }
 
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  // 优先使用 VITE_GEMINI_API_KEY，如果没有则回退到 GEMINI_API_KEY (通过 vite.config.ts 定义的 process.env)
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (process.env.API_KEY as string) || (process.env.GEMINI_API_KEY as string);
   if (!apiKey) {
-    throw new Error("未检测到 VITE_GEMINI_API_KEY，请在 .env.local 中配置");
+    throw new Error("未检测到 API Key，请在 .env.local 中配置 VITE_GEMINI_API_KEY 或 GEMINI_API_KEY");
   }
 
   const ai = new GoogleGenAI({ apiKey });
