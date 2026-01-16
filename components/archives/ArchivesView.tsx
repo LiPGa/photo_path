@@ -7,12 +7,14 @@ interface ArchivesViewProps {
   entries: PhotoEntry[];
   selectedEntry: PhotoEntry | null;
   onSelectEntry: (entry: PhotoEntry | null) => void;
+  isLoading?: boolean;
 }
 
 export const ArchivesView: React.FC<ArchivesViewProps> = ({
   entries,
   selectedEntry,
   onSelectEntry,
+  isLoading = false,
 }) => {
   const stats = React.useMemo(() => {
     if (!entries.length) return null;
@@ -242,14 +244,23 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
                      </div>
                   </div>
                 </>
+              ) : isLoading ? (
+                <div className="space-y-4 animate-pulse">
+                  <div className="grid grid-cols-3 gap-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="bg-zinc-900 border border-zinc-800 h-16 rounded-sm" />
+                    ))}
+                  </div>
+                  <div className="h-4 w-32 bg-zinc-900 rounded ml-auto" />
+                </div>
               ) : (
-                 <p className="text-zinc-500 text-sm">暂无分析数据。</p>
+                 <p className="text-zinc-500 text-sm">暂无分析数据，开始上传照片吧。</p>
               )}
             </div>
           </header>
 
           {/* Timeline List */}
-          <TimelineList entries={entries} onSelectEntry={onSelectEntry} />
+          <TimelineList entries={entries} onSelectEntry={onSelectEntry} isLoading={isLoading} />
         </div>
       )}
     </div>

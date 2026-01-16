@@ -28,25 +28,33 @@ const MemoizedArchivesView = memo(ArchivesView);
 const MemoizedLearnView = memo(LearnView);
 
 const AppContent: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<NavTab>(NavTab.EVALUATION);
   const [entries, setEntries] = useState<PhotoEntry[]>(INITIAL_ENTRIES);
   const [selectedEntry, setSelectedEntry] = useState<PhotoEntry | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isLoadingEntries, setIsLoadingEntries] = useState(false);
 
   // Load user data when logged in
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to be determined
+
     if (user) {
+      setIsLoadingEntries(true);
       getUserPhotoEntries(user.id).then((userEntries) => {
         if (userEntries.length > 0) {
           setEntries(userEntries);
+        } else {
+          setEntries([]); // User has no entries yet
         }
+      }).finally(() => {
+        setIsLoadingEntries(false);
       });
     } else {
       setEntries(INITIAL_ENTRIES);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   // 使用 startTransition 进行非阻塞的页面切换
   const handleTabChange = (tab: NavTab) => {
@@ -122,6 +130,7 @@ const AppContent: React.FC = () => {
               entries={entries}
               selectedEntry={selectedEntry}
               onSelectEntry={handleSelectEntry}
+              isLoading={isLoadingEntries || authLoading}
             />
           </div>
 
