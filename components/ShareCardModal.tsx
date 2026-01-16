@@ -44,11 +44,38 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
         scale: 2,
         useCORS: true,
       });
-      const link = document.createElement('a');
-      link.download = `photopath_${selectedTitle || 'insight'}_${Date.now()}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+
+      const fileName = `photopath_${selectedTitle || 'insight'}_${Date.now()}.png`;
+
+      // Convert canvas to blob for sharing
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create blob'))), 'image/png');
+      });
+
+      // Check if Web Share API with file sharing is available (mainly for mobile)
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const canShare = navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'image/png' })] });
+
+      if (isMobile && canShare) {
+        // Use Web Share API for mobile - saves directly to photos app
+        const file = new File([blob], fileName, { type: 'image/png' });
+        await navigator.share({
+          files: [file],
+          title: selectedTitle || 'PhotoPath 点评卡片',
+        });
+      } else {
+        // Fallback to download for desktop
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = URL.createObjectURL(blob);
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
     } catch (err) {
+      // User cancelled share is not an error
+      if ((err as Error).name === 'AbortError') {
+        return;
+      }
       console.error('生成卡片失败:', err);
       setError('生成卡片失败，请重试');
     } finally {
@@ -189,7 +216,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           <div className="mt-2 text-center text-sm text-red-400">{error}</div>
         )}
 
-        {/* Download button */}
+        {/* Save/Share button */}
         <button
           onClick={generateShareCard}
           disabled={isGeneratingCard}
@@ -200,7 +227,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
           ) : (
             <>
               <Download size={18} />
-              <span className="text-sm font-medium">保存卡片到相册</span>
+              <span className="text-sm font-medium">保存卡片</span>
             </>
           )}
         </button>

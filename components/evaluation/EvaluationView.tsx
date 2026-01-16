@@ -102,6 +102,7 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
       checkImage(result.url);
     } catch (err) {
       console.error('Cloudinary upload failed:', err);
+      const errorMessage = err instanceof Error ? err.message : '未知错误';
       // 降级：使用 base64
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -110,7 +111,7 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
         checkImage(base64);
       };
       reader.readAsDataURL(file);
-      setUploadError('云存储上传失败，使用本地模式');
+      setUploadError(`${errorMessage}，已切换本地模式`);
     } finally {
       setIsUploading(false);
     }

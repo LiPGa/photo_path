@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Camera } from 'lucide-react';
+import { ArrowLeft, Camera, Lightbulb } from 'lucide-react';
 import { PhotoEntry } from '../../types';
 import { ScoreMeter } from '../ui/ScoreMeter';
 import { Histogram } from '../ui/Histogram';
@@ -93,6 +93,18 @@ export const PhotoDetail: React.FC<PhotoDetailProps> = ({ entry, onBack }) => (
               ))}
             </div>
           </div>
+          {/* Evolution Strategy */}
+          {entry.analysis?.improvement && (
+            <div className="p-8 bg-[#D40000]/10 border border-[#D40000]/20 rounded-sm space-y-4">
+              <span className="mono text-sm text-[#D40000] font-bold tracking-[0.2em] block uppercase flex items-center gap-2">
+                <Lightbulb size={16} /> 进化策略
+              </span>
+              <p className="text-lg text-zinc-100 leading-relaxed">
+                {entry.analysis.improvement}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-10 pt-10 border-t border-white/5">
             <span className="mono text-xs text-zinc-700 uppercase tracking-widest font-bold block">
               Creator Notes

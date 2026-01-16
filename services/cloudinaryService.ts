@@ -1,6 +1,10 @@
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dvmjukj2e';
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'photopath';
 
+// Cloudinary free tier limits
+const MAX_CLOUDINARY_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+
 export interface UploadResult {
   url: string;
   publicId: string;
@@ -14,18 +18,55 @@ export interface UploadResult {
  * @returns 图片 URL 和元数据
  */
 export async function uploadImage(file: File): Promise<UploadResult> {
+  // Validate file before upload
+  if (file.size > MAX_CLOUDINARY_FILE_SIZE) {
+    throw new Error(`文件过大 (${(file.size / 1024 / 1024).toFixed(1)}MB)，上限 10MB`);
+  }
+
+  if (!ALLOWED_TYPES.includes(file.type) && !file.type.startsWith('image/')) {
+    throw new Error(`不支持的文件格式: ${file.type || '未知'}`);
+  }
+
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', UPLOAD_PRESET);
-  formData.append('folder', 'photopath'); // 存放在 photopath 文件夹
+  formData.append('folder', 'photopath');
 
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-    { method: 'POST', body: formData }
-  );
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+
+  let response: Response;
+  try {
+    response = await fetch(uploadUrl, { method: 'POST', body: formData });
+  } catch (fetchError) {
+    throw new Error(`网络错误: ${fetchError}`);
+  }
 
   if (!response.ok) {
-    throw new Error('图片上传失败');
+    let errorBody: any = null;
+    try {
+      errorBody = await response.json();
+    } catch {
+      // Ignore parse error
+    }
+
+    // Provide more specific error messages
+    const cloudinaryError = errorBody?.error?.message || errorBody?.message;
+    if (response.status === 400) {
+      if (cloudinaryError?.includes('preset')) {
+        throw new Error('上传配置错误，请联系管理员');
+      }
+      if (cloudinaryError?.includes('Invalid')) {
+        throw new Error('文件格式不支持');
+      }
+      throw new Error(`上传失败: ${cloudinaryError || '请求无效'}`);
+    }
+    if (response.status === 401) {
+      throw new Error('上传认证失败，请刷新页面重试');
+    }
+    if (response.status === 429) {
+      throw new Error('上传次数已达上限，请稍后重试');
+    }
+    throw new Error(`图片上传失败: ${cloudinaryError || `HTTP ${response.status}`}`);
   }
 
   const data = await response.json();
@@ -87,7 +128,14 @@ export async function uploadBase64(base64: string): Promise<UploadResult> {
   );
 
   if (!response.ok) {
-    throw new Error('图片上传失败');
+    let errorBody: any = null;
+    try {
+      errorBody = await response.json();
+    } catch {
+      // Ignore
+    }
+    const errorMessage = errorBody?.error?.message || `HTTP ${response.status}`;
+    throw new Error(`图片上传失败: ${errorMessage}`);
   }
 
   const data = await response.json();
