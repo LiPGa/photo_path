@@ -1,30 +1,9 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { X, Camera, Lightbulb, Download, CheckCircle } from 'lucide-react';
-import type { Options as Html2CanvasOptions } from 'html2canvas';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, Download, CheckCircle } from 'lucide-react';
 import { DetailedScores, DetailedAnalysis } from '../types';
-
-// Lazy load html2canvas for faster initial load
-let html2canvasModule: typeof import('html2canvas') | null = null;
-const getHtml2Canvas = async () => {
-  if (!html2canvasModule) {
-    html2canvasModule = await import('html2canvas');
-  }
-  return html2canvasModule.default;
-};
 
 // Detect mobile device once
 const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-// Preload an image and return a promise
-const preloadImage = (src: string): Promise<HTMLImageElement> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-};
 
 interface ExifData {
   camera?: string;
@@ -44,10 +23,401 @@ interface ShareCardModalProps {
   onClose: () => void;
 }
 
+// Load image with timeout
+const loadImage = (src: string, timeout = 5000): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const timer = setTimeout(() => reject(new Error('Image load timeout')), timeout);
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve(img);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error('Image load failed'));
+    };
+    img.src = src;
+  });
+};
+
+// Wrap text to fit within maxWidth, returns array of lines
+const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] => {
+  const lines: string[] = [];
+  const paragraphs = text.split('\n');
+
+  for (const paragraph of paragraphs) {
+    if (!paragraph.trim()) {
+      lines.push('');
+      continue;
+    }
+
+    let currentLine = '';
+    const chars = paragraph.split('');
+
+    for (const char of chars) {
+      const testLine = currentLine + char;
+      const metrics = ctx.measureText(testLine);
+
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = char;
+      } else {
+        currentLine = testLine;
+      }
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+  }
+
+  return lines;
+};
+
+// Native Canvas rendering - much faster than html2canvas
+const renderShareCardCanvas = async (
+  imageSrc: string,
+  title: string,
+  tags: string[],
+  exif: ExifData | null,
+  scores: DetailedScores,
+  analysis: DetailedAnalysis
+): Promise<string> => {
+  // Canvas dimensions
+  const WIDTH = 800;
+  const PADDING = 48;
+  const CONTENT_WIDTH = WIDTH - PADDING * 2;
+
+  // Colors
+  const BG_COLOR = '#0a0a0a';
+  const RED = '#D40000';
+  const WHITE = '#ffffff';
+  const GRAY_300 = '#d4d4d8';
+  const GRAY_400 = '#a1a1aa';
+  const GRAY_500 = '#71717a';
+  const GRAY_600 = '#52525b';
+  const GRAY_800 = '#27272a';
+  const GRAY_900 = '#18181b';
+
+  // Load image first
+  const photo = await loadImage(imageSrc);
+
+  // Calculate photo dimensions (4:3 aspect ratio, fit width)
+  const photoWidth = CONTENT_WIDTH;
+  const photoHeight = photoWidth * 0.75;
+
+  // Create temporary canvas to measure text heights
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d')!;
+  tempCtx.font = '28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
+  // Pre-calculate text sections
+  const diagnosisLines = wrapText(tempCtx, analysis.diagnosis || '', CONTENT_WIDTH);
+  const improvementLines = wrapText(tempCtx, analysis.improvement || '', CONTENT_WIDTH - 32);
+  const storyLines = analysis.storyNote ? wrapText(tempCtx, analysis.storyNote, CONTENT_WIDTH) : [];
+  const moodLines = analysis.moodNote ? wrapText(tempCtx, analysis.moodNote, CONTENT_WIDTH) : [];
+
+  // Calculate total height
+  let totalHeight = 0;
+  totalHeight += 80;  // Header
+  totalHeight += 16 + photoHeight + 16; // Photo section
+  totalHeight += 60 + (tags.length > 0 ? 40 : 0); // Title + tags
+  totalHeight += exif ? 50 : 0; // EXIF
+  totalHeight += 200; // Scores section
+  totalHeight += 60 + diagnosisLines.length * 36; // Diagnosis
+  totalHeight += 80 + improvementLines.length * 36; // Improvement box
+  totalHeight += storyLines.length > 0 ? 40 + storyLines.length * 32 : 0;
+  totalHeight += moodLines.length > 0 ? 40 + moodLines.length * 32 : 0;
+  totalHeight += 60; // Footer
+  totalHeight += 40; // Extra padding
+
+  // Create main canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = WIDTH;
+  canvas.height = totalHeight;
+  const ctx = canvas.getContext('2d')!;
+
+  // Background
+  ctx.fillStyle = BG_COLOR;
+  ctx.fillRect(0, 0, WIDTH, totalHeight);
+
+  let y = 0;
+
+  // === Header ===
+  y += 32;
+  // Logo box
+  ctx.fillStyle = RED;
+  ctx.beginPath();
+  ctx.roundRect(PADDING, y, 48, 48, 8);
+  ctx.fill();
+  ctx.fillStyle = WHITE;
+  ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('AP', PADDING + 12, y + 32);
+
+  // App name
+  ctx.fillStyle = GRAY_400;
+  ctx.font = '500 24px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('PhotoPath', PADDING + 64, y + 34);
+
+  // Lens Insight text
+  ctx.fillStyle = GRAY_600;
+  ctx.font = '20px "IBM Plex Mono", monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('Lens Insight', WIDTH - PADDING, y + 34);
+  ctx.textAlign = 'left';
+
+  y += 48;
+
+  // Header border
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PADDING, y);
+  ctx.lineTo(WIDTH - PADDING, y);
+  ctx.stroke();
+
+  // === Photo ===
+  y += 16;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(PADDING, y, photoWidth, photoHeight, 12);
+  ctx.clip();
+
+  // Draw photo with cover fit
+  const imgRatio = photo.width / photo.height;
+  const targetRatio = photoWidth / photoHeight;
+  let sx = 0, sy = 0, sw = photo.width, sh = photo.height;
+
+  if (imgRatio > targetRatio) {
+    sw = photo.height * targetRatio;
+    sx = (photo.width - sw) / 2;
+  } else {
+    sh = photo.width / targetRatio;
+    sy = (photo.height - sh) / 2;
+  }
+
+  ctx.drawImage(photo, sx, sy, sw, sh, PADDING, y, photoWidth, photoHeight);
+  ctx.restore();
+
+  y += photoHeight + 24;
+
+  // === Title ===
+  ctx.fillStyle = WHITE;
+  ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText(title || '未命名作品', PADDING, y);
+  y += 16;
+
+  // === Tags ===
+  if (tags.length > 0) {
+    y += 12;
+    let tagX = PADDING;
+    ctx.font = '20px -apple-system, BlinkMacSystemFont, sans-serif';
+    for (const tag of tags.slice(0, 3)) {
+      const tagWidth = ctx.measureText(tag).width + 16;
+      ctx.fillStyle = GRAY_900;
+      ctx.beginPath();
+      ctx.roundRect(tagX, y, tagWidth, 28, 4);
+      ctx.fill();
+      ctx.fillStyle = GRAY_500;
+      ctx.fillText(tag, tagX + 8, y + 20);
+      tagX += tagWidth + 8;
+    }
+    y += 40;
+  }
+
+  // Border
+  y += 8;
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.beginPath();
+  ctx.moveTo(PADDING, y);
+  ctx.lineTo(WIDTH - PADDING, y);
+  ctx.stroke();
+
+  // === EXIF ===
+  if (exif) {
+    y += 24;
+    ctx.fillStyle = GRAY_500;
+    ctx.font = '20px -apple-system, BlinkMacSystemFont, sans-serif';
+    const exifParts = [exif.camera, exif.aperture, exif.shutterSpeed, exif.iso].filter(Boolean);
+    ctx.fillText(exifParts.join('  ·  '), PADDING, y);
+    y += 24;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath();
+    ctx.moveTo(PADDING, y);
+    ctx.lineTo(WIDTH - PADDING, y);
+    ctx.stroke();
+  }
+
+  // === Scores ===
+  y += 32;
+  const scoreItems = [
+    { label: '构图', score: scores.composition },
+    { label: '光影', score: scores.light },
+    { label: '色彩', score: scores.color },
+    { label: '技术', score: scores.technical },
+    { label: '表达', score: scores.expression },
+  ];
+
+  const colWidth = CONTENT_WIDTH / 2;
+
+  for (let i = 0; i < scoreItems.length; i++) {
+    const item = scoreItems[i];
+    const col = i % 2;
+    const x = PADDING + col * colWidth;
+
+    // Label
+    ctx.fillStyle = GRAY_500;
+    ctx.font = '20px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(item.label, x, y);
+
+    // Progress bar background
+    const barX = x + 60;
+    const barWidth = 120;
+    ctx.fillStyle = GRAY_800;
+    ctx.beginPath();
+    ctx.roundRect(barX, y - 10, barWidth, 8, 4);
+    ctx.fill();
+
+    // Progress bar fill
+    ctx.fillStyle = RED;
+    ctx.beginPath();
+    ctx.roundRect(barX, y - 10, barWidth * (item.score / 10), 8, 4);
+    ctx.fill();
+
+    // Score value
+    ctx.fillStyle = GRAY_300;
+    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(item.score.toFixed(1), barX + barWidth + 48, y);
+    ctx.textAlign = 'left';
+
+    if (col === 1 || i === scoreItems.length - 1) {
+      y += 36;
+    }
+  }
+
+  // Overall score
+  y += 16;
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.beginPath();
+  ctx.moveTo(PADDING, y);
+  ctx.lineTo(WIDTH - PADDING, y);
+  ctx.stroke();
+
+  y += 32;
+  ctx.fillStyle = GRAY_400;
+  ctx.font = '500 24px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('综合评分', PADDING, y);
+
+  ctx.fillStyle = RED;
+  ctx.font = 'bold 56px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(scores.overall.toFixed(1), WIDTH - PADDING, y + 8);
+  ctx.textAlign = 'left';
+
+  y += 40;
+
+  // === Diagnosis ===
+  y += 16;
+  ctx.fillStyle = GRAY_300;
+  ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('诊断分析', PADDING, y);
+  y += 24;
+
+  ctx.fillStyle = GRAY_400;
+  ctx.font = '24px -apple-system, BlinkMacSystemFont, sans-serif';
+  for (const line of diagnosisLines) {
+    ctx.fillText(line, PADDING, y);
+    y += 32;
+  }
+
+  // === Improvement Box ===
+  y += 16;
+  const boxPadding = 16;
+  const improvementBoxHeight = 56 + improvementLines.length * 32;
+
+  // Box background
+  ctx.fillStyle = 'rgba(212, 0, 0, 0.1)';
+  ctx.strokeStyle = 'rgba(212, 0, 0, 0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(PADDING, y, CONTENT_WIDTH, improvementBoxHeight, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  // Box title
+  y += boxPadding + 20;
+  ctx.fillStyle = RED;
+  ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('💡 进化策略', PADDING + boxPadding, y);
+  y += 24;
+
+  // Box content
+  ctx.fillStyle = GRAY_300;
+  ctx.font = '24px -apple-system, BlinkMacSystemFont, sans-serif';
+  for (const line of improvementLines) {
+    ctx.fillText(line, PADDING + boxPadding, y);
+    y += 32;
+  }
+
+  y += boxPadding;
+
+  // === Story Note ===
+  if (storyLines.length > 0) {
+    y += 16;
+    ctx.fillStyle = GRAY_500;
+    ctx.font = '20px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('故事感：', PADDING, y);
+    y += 24;
+
+    ctx.fillStyle = GRAY_400;
+    ctx.font = '24px -apple-system, BlinkMacSystemFont, sans-serif';
+    for (const line of storyLines) {
+      ctx.fillText(line, PADDING, y);
+      y += 28;
+    }
+  }
+
+  // === Mood Note ===
+  if (moodLines.length > 0) {
+    y += 16;
+    ctx.fillStyle = GRAY_500;
+    ctx.font = '20px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('情绪：', PADDING, y);
+    y += 24;
+
+    ctx.fillStyle = GRAY_400;
+    ctx.font = '24px -apple-system, BlinkMacSystemFont, sans-serif';
+    for (const line of moodLines) {
+      ctx.fillText(line, PADDING, y);
+      y += 28;
+    }
+  }
+
+  // === Footer ===
+  y += 24;
+  ctx.fillStyle = 'rgba(24, 24, 27, 0.5)';
+  ctx.fillRect(0, y, WIDTH, 60);
+
+  y += 36;
+  ctx.fillStyle = GRAY_600;
+  ctx.font = '18px "IBM Plex Mono", monospace';
+  ctx.fillText(`AI 摄影点评 · ${new Date().toLocaleDateString('zh-CN')}`, PADDING, y);
+
+  ctx.textAlign = 'right';
+  ctx.fillText('photopath.app', WIDTH - PADDING, y);
+  ctx.textAlign = 'left';
+
+  // Export as JPEG for speed
+  return canvas.toDataURL('image/jpeg', 0.9);
+};
+
 // Helper function to convert data URL to Blob
 const dataURLtoBlob = (dataURL: string): Blob => {
   const arr = dataURL.split(',');
-  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
   const bstr = atob(arr[1]);
   let n = bstr.length;
   const u8arr = new Uint8Array(n);
@@ -59,18 +429,14 @@ const dataURLtoBlob = (dataURL: string): Blob => {
 
 // Helper function to download the image
 const downloadImage = async (imageUrl: string, title: string): Promise<boolean> => {
-  // Detect format from data URL
-  const isJpeg = imageUrl.startsWith('data:image/jpeg');
-  const ext = isJpeg ? 'jpg' : 'png';
-  const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
-  const fileName = `photopath_${title || 'insight'}_${Date.now()}.${ext}`;
+  const fileName = `photopath_${title || 'insight'}_${Date.now()}.jpg`;
 
   try {
     const blob = dataURLtoBlob(imageUrl);
 
     // Try Web Share API first (best for mobile)
     if (isMobileDevice && navigator.share && navigator.canShare) {
-      const file = new File([blob], fileName, { type: mimeType });
+      const file = new File([blob], fileName, { type: 'image/jpeg' });
       const shareData = { files: [file] };
 
       if (navigator.canShare(shareData)) {
@@ -88,7 +454,6 @@ const downloadImage = async (imageUrl: string, title: string): Promise<boolean> 
     document.body.appendChild(link);
     link.click();
 
-    // Cleanup after a short delay to ensure download starts
     setTimeout(() => {
       document.body.removeChild(link);
       URL.revokeObjectURL(blobUrl);
@@ -101,14 +466,6 @@ const downloadImage = async (imageUrl: string, title: string): Promise<boolean> 
   }
 };
 
-// Timeout wrapper for promises
-const withTimeout = <T,>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> => {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMsg)), ms))
-  ]);
-};
-
 export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   currentUpload,
   currentResult,
@@ -117,11 +474,11 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   activeTags,
   onClose,
 }) => {
-  const shareCardRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [generationComplete, setGenerationComplete] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Clean up the generated image URL when the component unmounts
   useEffect(() => {
@@ -133,78 +490,37 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
   }, [generatedImageUrl]);
 
   const generateShareCard = useCallback(async () => {
-    if (!shareCardRef.current || isGenerating) return;
+    if (isGenerating) return;
 
     setIsGenerating(true);
     setError(null);
     setGenerationComplete(false);
 
-    // Make the share card visible for rendering if it was hidden
-    if (shareCardRef.current) {
-      shareCardRef.current.style.display = 'block';
-    }
-
     try {
-      // Parallel: preload image and html2canvas module simultaneously
-      const [html2canvas, _img] = await Promise.all([
-        getHtml2Canvas(),
-        preloadImage(currentUpload).catch(() => null), // Continue even if preload fails
-      ]);
-
-      // Minimal delay for DOM to settle (reduced from 100ms)
-      await new Promise(resolve => setTimeout(resolve, 16));
-
-      // Optimized settings for mobile - use lower scale for faster generation
-      const canvasOptions: Html2CanvasOptions = {
-        backgroundColor: '#000',
-        scale: isMobileDevice ? 1.5 : 2, // Lower scale on mobile for speed
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
-        imageTimeout: 5000, // Reduced from 15s - image should be preloaded
-      };
-
-      const canvasPromise = html2canvas(shareCardRef.current!, canvasOptions);
-
-      // Reduced timeout: 10s for mobile, 15s for desktop
-      const timeout = isMobileDevice ? 10000 : 15000;
-      const canvas = await withTimeout(
-        canvasPromise,
-        timeout,
-        '生成超时，请重试'
+      const imageUrl = await renderShareCardCanvas(
+        currentUpload,
+        selectedTitle,
+        activeTags,
+        currentExif,
+        currentResult.scores,
+        currentResult.analysis
       );
-
-      // Use JPEG for faster encoding on mobile, PNG for desktop quality
-      const format = isMobileDevice ? 'image/jpeg' : 'image/png';
-      const quality = isMobileDevice ? 0.85 : 0.92;
-      const imageUrl = canvas.toDataURL(format, quality);
 
       setGeneratedImageUrl(imageUrl);
       setGenerationComplete(true);
-
     } catch (err) {
       console.error('Failed to generate share card:', err);
-      const errorMsg = err instanceof Error ? err.message : '生成失败，请刷新或稍后重试。';
-      setError(errorMsg);
+      setError('生成失败，请重试');
     } finally {
       setIsGenerating(false);
-      // Hide the original card after rendering to only show the image
-      if (shareCardRef.current) {
-        shareCardRef.current.style.display = 'none';
-      }
     }
-  }, [currentUpload, isGenerating]);
+  }, [currentUpload, selectedTitle, activeTags, currentExif, currentResult, isGenerating]);
 
   const handleBack = () => {
     setGeneratedImageUrl(null);
     setGenerationComplete(false);
     setError(null);
-     if(shareCardRef.current) {
-        shareCardRef.current.style.display = 'block';
-    }
   };
-
-  const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
     if (!generatedImageUrl || isSaving) return;
@@ -302,7 +618,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
             {isGenerating && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0a] rounded-lg">
                     <div className="w-6 h-6 border-4 border-[#D40000] border-t-transparent rounded-full animate-spin"></div>
-                    <span className="mt-4 text-zinc-300">正在生成中，请稍候...</span>
+                    <span className="mt-4 text-zinc-300">正在生成中...</span>
                 </div>
             )}
           </>
@@ -310,145 +626,6 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
 
         {error && <p className="text-red-500 text-sm text-center mt-4">{error}</p>}
       </div>
-
-
-        {/* Hidden element for rendering */}
-        <div className="absolute -left-[9999px] top-0">
-             <div
-                ref={shareCardRef}
-                className="bg-[#0a0a0a] rounded-lg overflow-hidden w-full"
-                style={{ fontFamily: "'Inter', 'PingFang SC', sans-serif", width: '400px' }}
-                >
-          {/* Header */}
-          <div className="px-6 py-4 flex items-center justify-between border-b border-white/5">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-[#D40000] rounded flex items-center justify-center text-[10px] font-black">
-                AP
-              </div>
-              <span className="text-sm font-medium text-zinc-400">PhotoPath</span>
-            </div>
-            <span className="text-xs text-zinc-600 mono">Lens Insight</span>
-          </div>
-
-          {/* Photo */}
-          <div className="px-4 pt-4">
-            <img
-              src={currentUpload}
-              className="w-full aspect-[4/3] object-cover rounded-lg"
-              alt=""
-              crossOrigin="anonymous"
-            />
-          </div>
-
-          {/* Title and tags */}
-          <div className="px-6 pt-5 pb-4 border-b border-white/5">
-            <h3 className="text-xl font-bold text-white mb-2">{selectedTitle || '未命名作品'}</h3>
-            <div className="flex flex-wrap gap-2">
-              {activeTags.slice(0, 3).map((tag) => (
-                <span key={tag} className="text-xs text-zinc-500 bg-zinc-900 px-2 py-1 rounded">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Camera params */}
-          {currentExif && (
-            <div className="px-6 py-3 border-b border-white/5 flex items-center gap-4 text-xs text-zinc-500">
-              <div className="flex items-center gap-1.5">
-                <Camera size={14} className="text-zinc-600" />
-                <span className="text-zinc-400">{currentExif.camera}</span>
-              </div>
-              <span>{currentExif.aperture}</span>
-              <span>{currentExif.shutterSpeed}</span>
-              <span>{currentExif.iso}</span>
-            </div>
-          )}
-
-          {/* Scores */}
-          <div className="px-6 py-5 space-y-4">
-            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-              {[
-                { label: '构图', score: currentResult.scores.composition },
-                { label: '光影', score: currentResult.scores.light },
-                { label: '色彩', score: currentResult.scores.color },
-                { label: '技术', score: currentResult.scores.technical },
-                { label: '表达', score: currentResult.scores.expression },
-              ].map((item, idx) => (
-                <div key={item.label} className={`flex items-center justify-between ${idx === 4 ? 'col-span-2' : ''}`}>
-                  <span className="text-xs text-zinc-500">{item.label}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[#D40000] rounded-full"
-                        style={{ width: `${item.score * 10}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-bold text-zinc-300 w-8 text-right">
-                      {item.score.toFixed(1)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Overall score */}
-            <div className="flex items-center justify-between pt-3 border-t border-white/5">
-              <span className="text-sm font-medium text-zinc-400">综合评分</span>
-              <span className="text-3xl font-black text-[#D40000]">
-                {currentResult.scores.overall.toFixed(1)}
-              </span>
-            </div>
-          </div>
-
-          {/* Diagnosis summary */}
-          <div className="px-6 pb-5">
-            <h4 className="text-sm font-bold text-zinc-300 mb-2">诊断分析</h4>
-            <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-line">
-              {currentResult.analysis.diagnosis}
-            </p>
-          </div>
-
-          {/* Evolution strategy */}
-          <div className="mx-6 mb-5 p-4 bg-[#D40000]/10 border border-[#D40000]/20 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Lightbulb size={14} className="text-[#D40000]" />
-              <span className="text-xs font-bold text-[#D40000]">进化策略</span>
-            </div>
-            <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-line">
-              {currentResult.analysis.improvement}
-            </p>
-          </div>
-
-          {/* Story and mood notes */}
-          <div className="px-6 pb-5 space-y-3">
-            {currentResult.analysis.storyNote && (
-              <div>
-                <span className="text-xs text-zinc-500">故事感：</span>
-                <p className="text-sm text-zinc-400 leading-relaxed">
-                  {currentResult.analysis.storyNote}
-                </p>
-              </div>
-            )}
-            {currentResult.analysis.moodNote && (
-              <div>
-                <span className="text-xs text-zinc-500">情绪：</span>
-                <p className="text-sm text-zinc-400 leading-relaxed">
-                  {currentResult.analysis.moodNote}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="px-6 py-4 bg-zinc-900/50 flex items-center justify-between">
-            <span className="text-[10px] text-zinc-600 mono">
-              AI 摄影点评 · {new Date().toLocaleDateString('zh-CN')}
-            </span>
-            <span className="text-[10px] text-zinc-600">photopath.app</span>
-          </div>
-            </div>
-        </div>
     </div>
   );
 };
