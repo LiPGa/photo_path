@@ -85,6 +85,10 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
     setUploadError(null);
     currentFileRef.current = file;
 
+    // 清除之前的上传状态，确保按钮禁用直到新图片上传完成
+    setCurrentUpload(null);
+    clearResult();
+
     // Set default EXIF values
     setCurrentExif({
       camera: 'Unknown',
@@ -98,7 +102,6 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
     // 创建本地预览 URL（不用 base64，更快）
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
-    clearResult();
 
     // 同时开始上传到 Cloudinary (先压缩)
     setIsUploading(true);
@@ -364,6 +367,7 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
         currentResult={currentResult}
         currentUpload={currentUpload}
         isAnalyzing={isAnalyzing}
+        isUploading={isUploading}
         isLimitReached={isLimitReached}
         remainingUses={remainingUses}
         user={user}

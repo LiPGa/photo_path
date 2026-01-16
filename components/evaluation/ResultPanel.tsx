@@ -26,6 +26,7 @@ interface ResultPanelProps {
   currentResult: { scores: DetailedScores; analysis: DetailedAnalysis } | null;
   currentUpload: string | null;
   isAnalyzing: boolean;
+  isUploading: boolean;
   isLimitReached: boolean;
   remainingUses: number;
   user: any;
@@ -45,6 +46,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
   currentResult,
   currentUpload,
   isAnalyzing,
+  isUploading,
   isLimitReached,
   remainingUses,
   user,
@@ -115,7 +117,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
           </div>
 
           <button
-            disabled={!currentUpload || isAnalyzing || isLimitReached}
+            disabled={!currentUpload || isAnalyzing || isUploading || isLimitReached}
             onClick={() => { haptic('medium'); onStartAnalysis(); }}
             className={`w-full py-10 mono text-sm font-bold tracking-[0.5em] transition-all uppercase shadow-lg group active:scale-[0.98] ${
               isLimitReached
@@ -123,7 +125,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
                 : 'border border-white/20 hover:bg-white hover:text-black disabled:opacity-20'
             }`}
           >
-            {isLimitReached ? '今日次数已用完' : isAnalyzing ? '分析中...' : '开始分析'}
+            {isLimitReached ? '今日次数已用完' : isUploading ? '正在上传图片...' : isAnalyzing ? '分析中...' : '开始分析'}
           </button>
 
           {isLimitReached && (
