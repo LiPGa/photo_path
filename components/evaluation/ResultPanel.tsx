@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { ScoreMeter } from '../ui/ScoreMeter';
 import { DetailedScores, DetailedAnalysis } from '../../types';
-import { DAILY_LIMIT } from '../../constants';
 
 // Haptic feedback for mobile - subtle vibration on key actions
 const haptic = (type: 'light' | 'medium' | 'success' = 'light') => {
@@ -82,29 +81,20 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
           {/* 每日限制提示 */}
           <div className="flex items-center justify-between p-4 bg-zinc-900/50 border border-white/5 rounded-sm">
             <div className="flex items-center gap-2 text-zinc-500 text-sm">
-              <Zap size={16} className={user || remainingUses > 0 ? 'text-[#D40000]' : 'text-zinc-700'} />
-              <span>{user ? '无限次数' : '今日剩余'}</span>
+              <Zap size={16} className={remainingUses > 0 ? 'text-[#D40000]' : 'text-zinc-700'} />
+              <span>今日剩余</span>
             </div>
-            {user ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-500">已登录</span>
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                {[...Array(DAILY_LIMIT)].map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i < remainingUses ? 'bg-[#D40000]' : 'bg-zinc-800'
-                    }`}
-                  />
-                ))}
-                <span className="ml-2 mono text-sm font-bold text-zinc-400">
-                  {remainingUses}/{DAILY_LIMIT}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {user && (
+                <div className="flex items-center gap-1 mr-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-xs text-zinc-500">已登录</span>
+                </div>
+              )}
+              <span className="mono text-sm font-bold text-zinc-400">
+                {remainingUses}/{user ? 20 : 5}
+              </span>
+            </div>
           </div>
 
           {/* Creator Context - 分析前显示 */}
@@ -138,11 +128,17 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
 
           {isLimitReached && (
             <p className="text-center text-zinc-600 text-sm">
-              明天再来，或{' '}
-              <button onClick={onShowAuthModal} className="text-[#D40000] hover:underline">
-                登录
-              </button>{' '}
-              解锁无限次数
+              {user ? (
+                '今日次数已用完，明天再来'
+              ) : (
+                <>
+                  今日次数已用完，
+                  <button onClick={onShowAuthModal} className="text-[#D40000] hover:underline">
+                    登录
+                  </button>
+                  {' '}可获得每日 20 次
+                </>
+              )}
             </p>
           )}
         </div>

@@ -38,7 +38,7 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
   onShowAuthModal,
 }) => {
   const { user } = useAuth();
-  const { remainingUses, incrementUsage, dailyLimit } = useDailyUsage();
+  const { remainingUses, incrementUsage, dailyLimit } = useDailyUsage(user?.id);
   const { duplicateWarning, checkImage, saveToCache, clearWarning } = useImageCache();
   const {
     isAnalyzing,
@@ -65,7 +65,7 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const currentFileRef = useRef<File | null>(null);
 
-  const isLimitReached = !user && remainingUses <= 0;
+  const isLimitReached = remainingUses <= 0;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

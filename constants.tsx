@@ -22,8 +22,11 @@ export const EXIF_LABELS: Record<string, string> = {
 
 // 文件和使用限制
 export const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
-export const DAILY_LIMIT = 5;
+export const GUEST_DAILY_LIMIT = 5;  // 未登录用户每日限制
+export const USER_DAILY_LIMIT = 20;  // 登录用户每日限制
+export const DAILY_LIMIT = GUEST_DAILY_LIMIT; // 兼容旧代码
 export const STORAGE_KEY = 'photopath_daily_usage';
+export const USER_STORAGE_KEY = 'photopath_user_daily_usage';
 export const CACHE_KEY = 'photopath_image_cache';
 
 export const PHOTO_TIPS = [
