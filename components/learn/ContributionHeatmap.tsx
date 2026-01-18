@@ -14,17 +14,33 @@ interface DayData {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Helper to format date as YYYY-MM-DD in local timezone
+const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Normalize entry date (YYYY.M.D or YYYY.MM.DD) to YYYY-MM-DD
+const normalizeEntryDate = (dateStr: string): string => {
+  const parts = dateStr.split('.');
+  if (parts.length !== 3) return dateStr;
+  const [year, month, day] = parts;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
 export const ContributionHeatmap: React.FC<ContributionHeatmapProps> = ({ entries }) => {
   const [hoveredDay, setHoveredDay] = useState<DayData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const { weeks, monthLabels, totalContributions, maxStreak, currentStreak } = useMemo(() => {
-    // Create a map of dates to photo counts
+    // Create a map of dates to photo counts (normalize all dates to YYYY-MM-DD)
     const dateCounts: Record<string, number> = {};
     entries.forEach(entry => {
-      // Convert "YYYY.MM.DD" to "YYYY-MM-DD"
-      const date = entry.date.replace(/\./g, '-');
-      dateCounts[date] = (dateCounts[date] || 0) + 1;
+      if (!entry.date) return;
+      const normalizedDate = normalizeEntryDate(entry.date);
+      dateCounts[normalizedDate] = (dateCounts[normalizedDate] || 0) + 1;
     });
 
     // Get the last 52 weeks (364 days)
@@ -44,7 +60,8 @@ export const ContributionHeatmap: React.FC<ContributionHeatmapProps> = ({ entrie
 
     const currentDate = new Date(startDate);
     while (currentDate <= today) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      // Use local timezone for date string
+      const dateStr = toLocalDateString(currentDate);
       const count = dateCounts[dateStr] || 0;
 
       // Determine level (0-4) based on count
@@ -132,12 +149,12 @@ export const ContributionHeatmap: React.FC<ContributionHeatmapProps> = ({ entrie
 
   const getLevelColor = (level: number) => {
     switch (level) {
-      case 0: return 'bg-zinc-800/50';
-      case 1: return 'bg-[#D40000]/20';
-      case 2: return 'bg-[#D40000]/40';
-      case 3: return 'bg-[#D40000]/70';
-      case 4: return 'bg-[#D40000] shadow-[0_0_8px_rgba(212,0,0,0.4)]';
-      default: return 'bg-zinc-800/50';
+      case 0: return 'bg-zinc-800';
+      case 1: return 'bg-[#5c1a1a]';
+      case 2: return 'bg-[#8b1a1a]';
+      case 3: return 'bg-[#b81c1c]';
+      case 4: return 'bg-[#D40000] shadow-[0_0_10px_rgba(212,0,0,0.6)]';
+      default: return 'bg-zinc-800';
     }
   };
 
