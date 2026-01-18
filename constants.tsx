@@ -81,35 +81,7 @@ export const PHOTO_TIPS = [
   "决定性瞬间：等待那个眼神、那个动作、那个光影交汇的瞬间。"
 ];
 
-export const INITIAL_ENTRIES: PhotoEntry[] = [
-  {
-    id: 'SEQ_229041',
-    imageUrl: 'https://picsum.photos/seed/p1/800/1000',
-    date: '2024.03.15',
-    location: 'STATION_ALPHA',
-    notes: '日落时分的街头随手拍。',
-    params: { camera: 'Leica Q2', aperture: 'f/2.8', iso: '200' },
-    scores: {
-      composition: 6.5,
-      light: 7.0,
-      color: 7.5,
-      technical: 6.0,
-      expression: 6.0,
-      overall: 6.5
-    },
-    analysis: {
-      diagnosis: "照片成功捕捉到了日落时分温润的光影氛围，色调和谐，给人以宁静的视觉感受。\n但构图上缺乏明确的力量感，背景中杂乱的线条分散了主体的吸引力，属于一张带有美感但缺乏深度的生活记录。",
-      improvement: "建议通过改变视角来压缩背景杂物，使主体更加纯粹，或利用长焦拉近距离。",
-      storyNote: "斜阳拉长的影子里藏着城市疲惫的温柔。",
-      moodNote: "暖色调营造了舒适但略显平淡的情绪。",
-      overallSuggestion: "不要止步于记录，尝试在画面中寻找更冲突的视觉元素。",
-      suggestedTitles: ["落日余温", "都市碎片", "归途"],
-      suggestedTags: ["#纪实", "#光影"],
-      instagramCaption: "Golden hour whispers in the urban silence.",
-      instagramHashtags: ["#streetphotography", "#leicaq2", "#goldenhour", "#cinematic"]
-    }
-  }
-];
+export const INITIAL_ENTRIES: PhotoEntry[] = [];
 
 export const INITIAL_GOALS: Goal[] = [
   { id: 'g1', title: '完成 30 张街头人像', current: 12, target: 30, category: 'Skills' }
