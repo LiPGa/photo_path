@@ -7,12 +7,14 @@ interface ArchivesViewProps {
   entries: PhotoEntry[];
   selectedEntry: PhotoEntry | null;
   onSelectEntry: (entry: PhotoEntry | null) => void;
+  isLoading?: boolean;
 }
 
 export const ArchivesView: React.FC<ArchivesViewProps> = ({
   entries,
   selectedEntry,
   onSelectEntry,
+  isLoading,
 }) => {
   const stats = React.useMemo(() => {
     if (!entries.length) return null;
@@ -249,7 +251,7 @@ export const ArchivesView: React.FC<ArchivesViewProps> = ({
           </header>
 
           {/* Timeline List */}
-          <TimelineList entries={entries} onSelectEntry={onSelectEntry} />
+          <TimelineList entries={entries} onSelectEntry={onSelectEntry} isLoading={isLoading} />
         </div>
       )}
     </div>

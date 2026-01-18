@@ -34,15 +34,21 @@ const AppContent: React.FC = () => {
   const [selectedEntry, setSelectedEntry] = useState<PhotoEntry | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isLoadingEntries, setIsLoadingEntries] = useState(false);
 
   // Load user data when logged in
   useEffect(() => {
     if (user) {
-      getUserPhotoEntries(user.id).then((userEntries) => {
-        if (userEntries.length > 0) {
-          setEntries(userEntries);
-        }
-      });
+      setIsLoadingEntries(true);
+      getUserPhotoEntries(user.id)
+        .then((userEntries) => {
+          if (userEntries.length > 0) {
+            setEntries(userEntries);
+          }
+        })
+        .finally(() => {
+          setIsLoadingEntries(false);
+        });
     } else {
       setEntries(INITIAL_ENTRIES);
     }
@@ -122,6 +128,7 @@ const AppContent: React.FC = () => {
               entries={entries}
               selectedEntry={selectedEntry}
               onSelectEntry={handleSelectEntry}
+              isLoading={isLoadingEntries}
             />
           </div>
 
