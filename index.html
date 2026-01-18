@@ -404,17 +404,23 @@
             border-radius: 2px;
         }
 
-        /* Reduced glow intensity for subtle mode */
+        /* Enhanced glow for subtle mode - visible but not overwhelming */
         .celebration-subtle .glow-tier-1 {
-            box-shadow: 0 0 15px rgba(212, 0, 0, 0.2);
+            border: 1px solid rgba(212, 0, 0, 0.3);
+            box-shadow: 0 0 20px rgba(212, 0, 0, 0.25);
+            animation: celebration-glow-pulse 2s ease-in-out 600ms infinite;
         }
 
         .celebration-subtle .glow-tier-2 {
-            box-shadow: 0 0 20px rgba(212, 0, 0, 0.25);
+            border: 1px solid rgba(212, 0, 0, 0.4);
+            box-shadow: 0 0 25px rgba(212, 0, 0, 0.3);
+            animation: celebration-glow-pulse 2s ease-in-out 600ms infinite;
         }
 
         .celebration-subtle .glow-tier-3 {
-            box-shadow: 0 0 25px rgba(212, 0, 0, 0.3), 0 0 40px rgba(212, 165, 116, 0.15);
+            border: 1px solid rgba(212, 165, 116, 0.5);
+            box-shadow: 0 0 30px rgba(212, 0, 0, 0.35), 0 0 50px rgba(212, 165, 116, 0.2);
+            animation: golden-glow-pulse 2s ease-in-out 600ms infinite;
         }
 
         /* === End Score Celebration System === */
