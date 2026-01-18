@@ -5,6 +5,7 @@ import { DAILY_PROMPTS, getTodayPrompt } from '../../constants';
 import { DailyPromptCard } from './DailyPromptCard';
 import { LearningProgress } from './LearningProgress';
 import { PersonalizedTips } from './PersonalizedTips';
+import { ContributionHeatmap } from './ContributionHeatmap';
 
 interface LearnViewProps {
   entries: PhotoEntry[];
@@ -128,6 +129,9 @@ export const LearnView: React.FC<LearnViewProps> = ({
           <div className="space-y-6">
             {/* Learning Progress */}
             <LearningProgress entries={entries} />
+
+            {/* Contribution Heatmap */}
+            <ContributionHeatmap entries={entries} />
 
             {/* Personalized Tips */}
             <PersonalizedTips
