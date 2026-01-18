@@ -45,7 +45,7 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
   const todayPrompt = getTodayPrompt();
   const { user } = useAuth();
   const { remainingUses, incrementUsage, dailyLimit } = useDailyUsage(user?.id);
-  const { duplicateWarning, checkImage, saveToCache, clearWarning } = useImageCache();
+  const { duplicateWarning, cachedResult, checkImage, saveToCache, clearWarning, clearCache } = useImageCache();
   const {
     isAnalyzing,
     currentResult,
@@ -56,6 +56,7 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
     startAnalysis,
     clearResult,
     clearError,
+    setResult,
   } = usePhotoAnalysis();
 
   const [currentUpload, setCurrentUpload] = useState<string | null>(null); // Cloudinary URL or base64
@@ -106,6 +107,9 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
 
+    // 尽早生成图片哈希检查重复（使用本地 blob URL）
+    checkImage(objectUrl);
+
     // 同时开始上传到 Cloudinary (先压缩)
     setIsUploading(true);
     
@@ -123,7 +127,6 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
         // 2. 上传
         const result = await uploadImage(fileToUpload);
         setCurrentUpload(result.url); // 存 Cloudinary URL
-        checkImage(result.url);
       } catch (err) {
         console.error('Cloudinary upload failed:', err);
         const errorMessage = err instanceof Error ? err.message : '未知错误';
@@ -136,7 +139,6 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
         reader.onload = (ev) => {
           const base64 = ev.target?.result as string;
           setCurrentUpload(base64);
-          checkImage(base64);
         };
         reader.readAsDataURL(fileForBase64);
         setUploadError(`${errorMessage}，已切换本地模式`);
@@ -188,8 +190,36 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
       if (result.analysis.suggestedTags?.length) {
         setActiveTags(result.analysis.suggestedTags);
       }
-      saveToCache(result.analysis.suggestedTitles?.[0] || 'Untitled');
+      // Save full result to cache for future duplicate detection
+      saveToCache(
+        result.analysis.suggestedTitles?.[0] || 'Untitled',
+        result.scores,
+        result.analysis,
+        currentUpload
+      );
       incrementUsage();
+    }
+  };
+
+  // Use cached result from previous analysis of the same image
+  const handleUseCachedResult = () => {
+    if (cachedResult) {
+      // Load cached scores/analysis directly without API call
+      setResult({
+        scores: cachedResult.scores,
+        analysis: cachedResult.analysis,
+      });
+
+      // Set title and tags from cached result
+      if (cachedResult.analysis.suggestedTitles?.length) {
+        setSelectedTitle(cachedResult.analysis.suggestedTitles[0]);
+      } else {
+        setSelectedTitle(cachedResult.title);
+      }
+      if (cachedResult.analysis.suggestedTags?.length) {
+        setActiveTags(cachedResult.analysis.suggestedTags);
+      }
+      clearWarning();
     }
   };
 
@@ -294,6 +324,7 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
     setCurrentExif(null);
     clearError();
     setUploadError(null);
+    clearCache(); // Clear image hash and cached result state
     currentFileRef.current = null;
   };
 
@@ -325,6 +356,14 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
                   「{duplicateWarning.title}」{duplicateWarning.date}
                 </span>
               </div>
+              {cachedResult && (
+                <button
+                  onClick={handleUseCachedResult}
+                  className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded text-sm transition-colors"
+                >
+                  使用上次结果
+                </button>
+              )}
               <button onClick={clearWarning} className="ml-2 hover:opacity-50">
                 <X size={14} />
               </button>

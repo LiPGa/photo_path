@@ -79,6 +79,11 @@ export function usePhotoAnalysis() {
     setError(null);
   };
 
+  // Set result directly (for cached results)
+  const setResult = (result: AnalysisResult | null) => {
+    setCurrentResult(result);
+  };
+
   return {
     isAnalyzing,
     currentResult,
@@ -89,5 +94,6 @@ export function usePhotoAnalysis() {
     startAnalysis,
     clearResult,
     clearError,
+    setResult,
   };
 }
