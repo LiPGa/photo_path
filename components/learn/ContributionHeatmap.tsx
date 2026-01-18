@@ -145,7 +145,7 @@ export const ContributionHeatmap: React.FC<ContributionHeatmapProps> = ({ entrie
     <div className="bg-zinc-900/50 border border-white/5 rounded-xl overflow-hidden">
       {/* Header */}
       <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
-        <h3 className="text-sm font-medium tracking-wide">CONTRIBUTIONS</h3>
+        <h3 className="text-sm font-medium tracking-wide">SHOOTING ACTIVITY</h3>
         <div className="text-xs text-zinc-500">
           <span className="text-zinc-300">{totalContributions}</span> photos in the last year
         </div>

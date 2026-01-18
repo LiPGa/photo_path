@@ -130,9 +130,6 @@ export const LearnView: React.FC<LearnViewProps> = ({
             {/* Learning Progress */}
             <LearningProgress entries={entries} />
 
-            {/* Contribution Heatmap */}
-            <ContributionHeatmap entries={entries} />
-
             {/* Personalized Tips */}
             <PersonalizedTips
               entries={entries}
@@ -140,6 +137,9 @@ export const LearnView: React.FC<LearnViewProps> = ({
             />
           </div>
         </div>
+
+        {/* Shooting Activity Heatmap - Full Width */}
+        <ContributionHeatmap entries={entries} />
 
         {/* Quick Tips Section */}
         <div className="border-t border-white/5 pt-8">
