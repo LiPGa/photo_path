@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, AlertCircle, Loader2 } from 'lucide-react';
 import exifr from 'exifr';
 import { PhotoEntry, NavTab } from '../../types';
@@ -16,6 +16,7 @@ import { TechnicalPanel } from './TechnicalPanel';
 import { ResultPanel } from './ResultPanel';
 import { ShareCardModal } from '../ShareCardModal';
 import { DailyPromptCard } from '../learn/DailyPromptCard';
+import { GuestSavePrompt } from '../GuestSavePrompt';
 
 interface ExifData {
   camera: string;
@@ -68,6 +69,8 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showGuestSavePrompt, setShowGuestSavePrompt] = useState(false);
+  const [pendingSave, setPendingSave] = useState(false);
   const currentFileRef = useRef<File | null>(null);
 
   const isLimitReached = remainingUses <= 0;
@@ -250,6 +253,36 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
     }
   };
 
+  // Handle save button click - show prompt for guests
+  const handleSaveClick = () => {
+    if (!user) {
+      setShowGuestSavePrompt(true);
+    } else {
+      handleSaveRecord();
+    }
+  };
+
+  // Guest chooses to login first, then save
+  const handleLoginSave = () => {
+    setPendingSave(true);
+    setShowGuestSavePrompt(false);
+    onShowAuthModal();
+  };
+
+  // Guest chooses to save to session only
+  const handleSessionSave = () => {
+    setShowGuestSavePrompt(false);
+    handleSaveRecord();
+  };
+
+  // Complete pending save after successful login
+  useEffect(() => {
+    if (user && pendingSave && currentUpload && currentResult) {
+      handleSaveRecord();
+      setPendingSave(false);
+    }
+  }, [user, pendingSave]);
+
   const handleClearUpload = () => {
     // 清理 Object URL 避免内存泄漏
     if (previewUrl && previewUrl.startsWith('blob:')) {
@@ -372,7 +405,7 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
         onStartAnalysis={handleStartAnalysis}
         onSelectTitle={setSelectedTitle}
         onShowShareCard={() => setShowShareCard(true)}
-        onSaveRecord={handleSaveRecord}
+        onSaveClick={handleSaveClick}
         onShowAuthModal={onShowAuthModal}
       />
 
@@ -387,6 +420,14 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({
           onClose={() => setShowShareCard(false)}
         />
       )}
+
+      {/* Guest Save Prompt Modal */}
+      <GuestSavePrompt
+        isOpen={showGuestSavePrompt}
+        onClose={() => setShowGuestSavePrompt(false)}
+        onLoginSave={handleLoginSave}
+        onSessionSave={handleSessionSave}
+      />
     </div>
   );
 };

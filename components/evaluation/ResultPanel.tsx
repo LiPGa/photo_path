@@ -38,7 +38,7 @@ interface ResultPanelProps {
   onStartAnalysis: () => void;
   onSelectTitle: (title: string) => void;
   onShowShareCard: () => void;
-  onSaveRecord: () => void;
+  onSaveClick: () => void;
   onShowAuthModal: () => void;
 }
 
@@ -58,7 +58,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
   onStartAnalysis,
   onSelectTitle,
   onShowShareCard,
-  onSaveRecord,
+  onSaveClick,
   onShowAuthModal,
 }) => {
   const [isContextCollapsed, setIsContextCollapsed] = useState(false);
@@ -280,7 +280,7 @@ export const ResultPanel: React.FC<ResultPanelProps> = ({
             </button>
 
             <button
-              onClick={() => { haptic('success'); onSaveRecord(); }}
+              onClick={() => { haptic('success'); onSaveClick(); }}
               disabled={isSaving}
               className={`w-full py-6 transition-all shadow-[0_20px_50px_rgba(212,0,0,0.5)] active:scale-[0.98] rounded-sm group ${
                 isSaving ? 'bg-green-600' : 'bg-[#D40000] hover:bg-[#B30000]'
